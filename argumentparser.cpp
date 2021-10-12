@@ -1,7 +1,6 @@
 #include <getopt.h>
 #include <string.h>
 #include <stdexcept>
-#include <iostream>
 #include "argumentparser.h"
 
 ArgumentParser::ArgumentParser(int argc, char** argv)
@@ -124,30 +123,30 @@ bool _IsIPv4(std::string address)
         {
             int dotPosition = address.find('.');
             auto part = address.substr(0, dotPosition);
-            
+
             int partVal = std::stoi(part);
             if (partVal > 255 || partVal < 0)
                 return false;
             partsCount++;
-
-            if (dotPosition == std::string::npos)
+            
+            if (dotPosition == -1)
                 address = "";
             else
                 address.erase(0, dotPosition + 1);
         }
-        if (partsCount != 4)
-            return false;
     }
     catch(const std::exception& e)
     {
         return false;
     }
+    if (partsCount != 4)
+        return false;
+
     return true;
 }
 
 bool _IsIPv6(std::string address)
 {
-
     return true;
 }
 

@@ -1,9 +1,9 @@
 CC = g++
-CFLAGS = -std=c++2a -pedantic -Werror -Wall -Wextra -g
+CXXFLAGS = -std=c++2a -pedantic -Wall -Wextra -g
 OBJS = mytftpclient.o argumentparser.o
 
 mytftpclient: $(OBJS)
-	$(CC) $(CFLAGS) $^ -o $@
+	$(CC) $(CXXFLAGS) $^ -o $@
 
 clean:
 	rm -f *.o mytftpclient
