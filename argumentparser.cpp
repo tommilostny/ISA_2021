@@ -117,19 +117,26 @@ void ArgumentParser::ParseMode(bool& modeFlag, std::string optionArg)
 
 bool _IsIPv4(std::string address)
 {
+    int partsCount = 0;
     try
     {
-        for (int i = 0; i < 4; i++)
+        while (!address.empty())
         {
             int dotPosition = address.find('.');
             auto part = address.substr(0, dotPosition);
-            address.erase(0, dotPosition + 1);
-
-            int octet = std::stoi(part);
-            if (octet > 255 || octet < 0 || (dotPosition == -1 && i < 3))
+            
+            int partVal = std::stoi(part);
+            if (partVal > 255 || partVal < 0)
                 return false;
+            partsCount++;
+
+            if (dotPosition == std::string::npos)
+                address = "";
+            else
+                address.erase(0, dotPosition + 1);
         }
-        std:: cerr << address << std::endl;
+        if (partsCount != 4)
+            return false;
     }
     catch(const std::exception& e)
     {
@@ -140,6 +147,7 @@ bool _IsIPv4(std::string address)
 
 bool _IsIPv6(std::string address)
 {
+
     return true;
 }
 
