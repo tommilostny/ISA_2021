@@ -1,28 +1,37 @@
 #include <iostream>
 #include "argumentparser.h"
 
-int main(int argc, char** argv)
+int main()
 {
-    ArgumentParser* args;
-    try
+    while (!std::cin.eof())
     {
-        args = new ArgumentParser(argc, argv);
+        ArgumentParser* argParser;
+        std::string args = "";
+
+        std::cout << "\n> ";
+        std::getline(std::cin, args);
+        if (args.empty())
+            continue;
+        try
+        {
+            argParser = new ArgumentParser(args);
+        }
+        catch (const std::invalid_argument& exception)
+        {
+            std::cerr << exception.what() << std::endl;
+            continue;
+        }
+        std::cout << "Read mode:\t" << argParser->GetReadMode() << std::endl;
+        std::cout << "Write mode:\t" << argParser->GetWriteMode() << std::endl;
+        std::cout << "Destination:\t" << argParser->GetDestinationPath() << std::endl;
+        std::cout << "Is dest set?\t" << !(argParser->GetDestinationPath().empty()) << std::endl;
+        std::cout << "Mode:\t\t" << argParser->GetMode() << std::endl;
+        std::cout << "Timeout:\t" << argParser->GetTimeout() << std::endl;
+        std::cout << "Size:\t\t" << argParser->GetSize() << std::endl;
+        std::cout << "Multicast?\t" << argParser->GetMulticast() << std::endl;
+        std::cout << "Address:\t" << argParser->GetAddress() << std::endl;
+        std::cout << "IP version:\t" << argParser->GetAddressVersion() << std::endl;
+        delete argParser;
     }
-    catch (const std::invalid_argument& exception)
-    {
-        std::cerr << exception.what() << std::endl;
-        return 1;
-    }
-    std::cout << "Read mode:\t" << args->GetReadMode() << std::endl;
-    std::cout << "Write mode:\t" << args->GetWriteMode() << std::endl;
-    std::cout << "Destination:\t" << args->GetDestinationPath() << std::endl;
-    std::cout << "Is dest set?\t" << !(args->GetDestinationPath().empty()) << std::endl;
-    std::cout << "Mode:\t\t" << args->GetMode() << std::endl;
-    std::cout << "Timeout:\t" << args->GetTimeout() << std::endl;
-    std::cout << "Size:\t\t" << args->GetSize() << std::endl;
-    std::cout << "Multicast?\t" << args->GetMulticast() << std::endl;
-    std::cout << "Address:\t" << args->GetAddress() << std::endl;
-    std::cout << "IP version:\t" << args->GetAddressVersion() << std::endl;
-    delete args;
     return 0;
 }

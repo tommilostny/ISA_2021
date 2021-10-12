@@ -21,7 +21,7 @@ class ArgumentParser
         short GetAddressVersion();
         
         // Parse given program parameters into ArgumentParser class attributes.
-        ArgumentParser(int argc, char **argv);
+        ArgumentParser(std::string args);
 
     protected:
         bool ReadMode;                  // Argument -R, read mode (required if -W is not set, otherwise forbidden).

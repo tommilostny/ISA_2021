@@ -1,0 +1,6 @@
+-t 100 -m -c netascii -W -d mdmkamsdkl
+-d lol2.png -t 300 -m -a 192.168.30.150 -R
+-t 50 -a 55.66.77.88 -d filexx -W -m
+-m -c  ascii  -a 77.44.255.10 -d  opopopo.txt -R  -t      500 -s400
+-d hbhb -W -a vjnkwjvnkj
+-R -d /home/user/readme.txt -a 147.229.181.2 , 169 -c   octet -w

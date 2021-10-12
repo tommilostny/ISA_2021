@@ -1,35 +1,123 @@
 #include <getopt.h>
 #include <string.h>
+#include <malloc.h>
 #include <stdexcept>
+#include <vector>
+#include <regex>
 #include "argumentparser.h"
 
-ArgumentParser::ArgumentParser(int argc, char** argv)
+/// Initialize argv and argc from string for getopt function.
+void _ArgsForGetops(std::string args, int& argc, char**& argv)
 {
-    bool destFlag, timeoutFlag, sizeFlag, modeFlag, addrFlag;
-    int option;
+    // Initialize argc to 1 and first argv item to program name.
+    argc = 1;
+    auto arg1 = (char*)malloc(15 * sizeof(char));
+    if (arg1 == NULL)
+        throw std::runtime_error("Unable to allocate memory.");
 
-    while ((option = getopt(argc, argv, "RWd:t:s:mc:a:")) != -1)
+    strcpy(arg1, (char*)"mytftpclient");
+
+    // Temporaty vector of loaded arguments.
+    std::vector<char*> argsVect = { arg1 };
+
+    while (!args.empty())
     {
-        switch (option)
-        {
-        case 'R':   ParseRead();                        break;
-        case 'W':   ParseWrite();                       break;
-        case 'd':   ParseDestination(destFlag, optarg); break;
-        case 't':   ParseTimeout(timeoutFlag, optarg);  break;
-        case 's':   ParseSize(sizeFlag, optarg);        break;
-        case 'm':   ParseMulticast();                   break;
-        case 'c':   ParseMode(modeFlag, optarg);        break;
-        case 'a':   ParseAddress(addrFlag, optarg);     break;
-        default:
-            throw std::invalid_argument("Invalid argument: '" + std::to_string(option) + "'.");
-            break;
-        }
-    }
-    if (!ReadMode && !WriteMode)
-        throw std::invalid_argument("Missing required argument -R (read mode) or -W (write mode).");
+        // Get a substing from start to first whitespace character.
+        std::smatch match;
+        std::regex_search(args, match, std::regex("\\s"));
+        auto spacePos = match.position();
+        auto arg = args.substr(0, spacePos);
 
-    if (!destFlag)
-        throw std::invalid_argument("Missing required argument -d <file-path>.");
+        if (!arg.empty()) // Loaded an actual option? Skip unnecessary whitespaces.
+        {
+            // Copy substring to a new character array and save it in the temporary vector.
+            auto array = (char*)malloc((arg.length() + 1) * sizeof(char));
+            if (array == NULL)
+                throw std::runtime_error("Unable to allocate memory.");
+
+            strcpy(array, arg.c_str());
+            argsVect.push_back(array);
+            argc++;
+        }
+        if (spacePos == -1) // No more whitespaces found (end of string), make it empty.
+            args = "";
+        else // Erase matched option from the string before loading another.
+            args.erase(0, spacePos + 1);
+    }
+    // All options loaded, save them to a new char pointer array argv.
+    if ((argv = (char**)malloc(argc * sizeof(char*))) == NULL)
+        throw std::runtime_error("Unable to allocate memory.");
+
+    for (int i = 0; i < argc; i++)
+        argv[i] = argsVect[i];
+}
+
+/// Free all memory used by created argv array.
+void _FreeArgv(int argc, char** argv)
+{
+    for (int i = 0; i < argc; i++)
+        free(argv[i]);
+    free(argv);
+}
+
+ArgumentParser::ArgumentParser(std::string args)
+{
+    // Initialize class attributes default values.
+    ReadMode = WriteMode = Multicast = false;
+    DestinationPath = "";
+    Address = "";
+    IpVersion = Timeout = Size = 0;
+    Mode = BINARY;
+
+    // Load argc and argv for getopt from string.
+    int argc;
+    char** argv;
+    try
+    {
+        _ArgsForGetops(args, argc, argv);
+    }
+    catch (const std::runtime_error& e) // Catch possible memory allocation error.
+    {
+        throw std::invalid_argument(e.what());
+    }
+    // Arguments loaded, prepare flags and reset getopt.
+    bool destFlag = false, timeoutFlag = false, sizeFlag = false, modeFlag = false, addrFlag = false;
+    int option;
+    optind = 0;
+    try
+    {
+        // Parse arguments using getopt.
+        while ((option = getopt(argc, argv, "RWd:t:s:mc:a:")) != -1)
+        {
+            switch (option)
+            {
+            case 'R':   ParseRead();                        break;
+            case 'W':   ParseWrite();                       break;
+            case 'd':   ParseDestination(destFlag, optarg); break;
+            case 't':   ParseTimeout(timeoutFlag, optarg);  break;
+            case 's':   ParseSize(sizeFlag, optarg);        break;
+            case 'm':   ParseMulticast();                   break;
+            case 'c':   ParseMode(modeFlag, optarg);        break;
+            case 'a':   ParseAddress(addrFlag, optarg);     break;
+            default:
+                throw std::invalid_argument(args);
+                break;
+            }
+        }
+        // Check for required -R/-W and -d arguments.
+        if (!ReadMode && !WriteMode)
+            throw std::invalid_argument("Missing required argument -R (read mode) or -W (write mode).");
+
+        if (!destFlag)
+            throw std::invalid_argument("Missing required argument -d <file-path>.");
+    }
+    catch (const std::invalid_argument& e)
+    {
+        // Exception thrown while parsing an argument, free the memory before rethrowing.
+        _FreeArgv(argc, argv);
+        throw e;
+    }
+    _FreeArgv(argc, argv);
 }
 
 void ArgumentParser::ParseRead()
@@ -69,7 +157,7 @@ void ArgumentParser::ParseTimeout(bool& timeoutFlag, std::string optionArg)
     }
     catch (const std::exception &e)
     {
-        throw std::invalid_argument("Invalud value for argument -t: " + (std::string)optionArg);
+        throw std::invalid_argument("Invalid value for argument -t: " + (std::string)optionArg);
     }
     timeoutFlag = true;
 }
@@ -86,7 +174,7 @@ void ArgumentParser::ParseSize(bool& sizeFlag, std::string optionArg)
     }
     catch (const std::exception &e)
     {
-        throw std::invalid_argument("Invalud value for argument -s: " + (std::string)optionArg);
+        throw std::invalid_argument("Invalid value for argument -s: " + (std::string)optionArg);
     }
     sizeFlag = true;
 }
@@ -135,7 +223,7 @@ bool _IsIPv4(std::string address)
                 address.erase(0, dotPosition + 1);
         }
     }
-    catch(const std::exception& e)
+    catch (const std::exception& e)
     {
         return false;
     }
@@ -147,7 +235,7 @@ bool _IsIPv4(std::string address)
 
 bool _IsIPv6(std::string address)
 {
-    return true;
+    return false;
 }
 
 void ArgumentParser::ParseAddress(bool& addressFlag, std::string optionArg)
