@@ -1,6 +1,7 @@
 #include <getopt.h>
 #include <string.h>
 #include <stdexcept>
+#include <iostream>
 #include "argumentparser.h"
 
 ArgumentParser::ArgumentParser(int argc, char** argv)
@@ -114,12 +115,40 @@ void ArgumentParser::ParseMode(bool& modeFlag, std::string optionArg)
     modeFlag = true;
 }
 
+bool _IsIPv4(std::string address)
+{
+    try
+    {
+        for (int i = 0; i < 4; i++)
+        {
+            int dotPosition = address.find('.');
+            auto part = address.substr(0, dotPosition);
+            address.erase(0, dotPosition + 1);
+
+            int octet = std::stoi(part);
+            if (octet > 255 || octet < 0 || (dotPosition == -1 && i < 3))
+                return false;
+        }
+        std:: cerr << address << std::endl;
+    }
+    catch(const std::exception& e)
+    {
+        return false;
+    }
+    return true;
+}
+
+bool _IsIPv6(std::string address)
+{
+    return true;
+}
+
 void ArgumentParser::ParseAddress(bool& addressFlag, std::string optionArg)
 {
     if (addressFlag)
         throw std::invalid_argument("Argument -a already set to '" + Address + "'.");
 
-    //TODO: #1 IP address parsing...
+    IpVersion = _IsIPv4(optionArg) ? 4 : _IsIPv6(optionArg) ? 6 : throw std::invalid_argument("Bad IP address format: " + optionArg);
     Address = optionArg;
     addressFlag = true;
 }
@@ -139,3 +168,5 @@ bool ArgumentParser::GetMulticast()                 { return Multicast; }
 enum Mode ArgumentParser::GetMode()                 { return Mode; }
 
 std::string ArgumentParser::GetAddress()            { return Address; }
+
+short ArgumentParser::GetAddressVersion()           { return IpVersion; }

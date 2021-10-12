@@ -18,6 +18,7 @@ class ArgumentParser
         bool GetMulticast();
         enum Mode GetMode();
         std::string GetAddress();
+        short GetAddressVersion();
         
         // Parse given program parameters into ArgumentParser class attributes.
         ArgumentParser(int argc, char **argv);
@@ -31,6 +32,7 @@ class ArgumentParser
         bool Multicast;                 // Argument -m, enables multicast communication.
         enum Mode Mode;                 // Argument -c, mode decoded from "binary"/"octet" and "ascii"/"netascii".
         std::string Address;            // Argument -a, IPv4 or IPv6 address.
+        short IpVersion;                // 4 or 6 for valid Address.
 
     private: // Private parsing methods for constructor design and simplification.
         void ParseRead();

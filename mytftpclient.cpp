@@ -20,8 +20,9 @@ int main(int argc, char** argv)
     std::cout << "Mode:\t\t" << args->GetMode() << std::endl;
     std::cout << "Timeout:\t" << args->GetTimeout() << std::endl;
     std::cout << "Size:\t\t" << args->GetSize() << std::endl;
-    std::cout << "Address:\t" << args->GetAddress() << std::endl;
     std::cout << "Multicast?\t" << args->GetMulticast() << std::endl;
+    std::cout << "Address:\t" << args->GetAddress() << std::endl;
+    std::cout << "IP version:\t" << args->GetAddressVersion() << std::endl;
     delete args;
     return 0;
 }
