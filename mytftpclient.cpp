@@ -1,24 +1,25 @@
 #include <iostream>
-#include <getopt.h>
 #include "argumentparser.h"
 
 int main(int argc, char** argv)
 {
-    ArgumentParser* argParser;
+    ArgumentParser* args;
     try
     {
-        argParser = new ArgumentParser(argc, argv);
+        args = new ArgumentParser(argc, argv);
     }
-    catch (const std::invalid_argument& e)
+    catch (const std::invalid_argument& exception)
     {
-        std::cerr << e.what() << std::endl;
+        std::cerr << exception.what() << std::endl;
         return 1;
     }
-    std::cout << "Read mode:\t" << argParser->ReadMode << std::endl;
-    std::cout << "Destination:\t" << argParser->DestinationPath << std::endl;
-    std::cout << "Mode:\t\t" << argParser->Mode << std::endl;
-    std::cout << "Timeout:\t" << argParser->Timeout << std::endl;
-    std::cout << "Size:\t\t" << argParser->Size << std::endl;
-    delete argParser;
+    std::cout << "Read mode:\t" << args->GetReadMode() << std::endl;
+    std::cout << "Destination:\t" << args->GetDestinationPath() << std::endl;
+    std::cout << "Is dest set?\t" << !(args->GetDestinationPath().empty()) << std::endl;
+    std::cout << "Mode:\t\t" << args->GetMode() << std::endl;
+    std::cout << "Timeout:\t" << args->GetTimeout() << std::endl;
+    std::cout << "Size:\t\t" << args->GetSize() << std::endl;
+    std::cout << "Address:\t" << args->GetAddress() << std::endl;
+    delete args;
     return 0;
 }
