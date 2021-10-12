@@ -26,6 +26,14 @@ ArgumentParser::ArgumentParser(int argc, char **argv)
         }
     }
     //TODO: #2 Checks for required arguments.
+    if (!ReadMode && !WriteMode)
+    {
+        throw std::invalid_argument("Missing required argument -R (read mode) or -W (write mode).");
+    }
+    if (!destFlag)
+    {
+        throw std::invalid_argument("Missing required argument -d <file-path>.");
+    }
 }
 
 void ArgumentParser::ParseRead()
