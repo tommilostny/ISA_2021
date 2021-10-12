@@ -14,12 +14,14 @@ int main(int argc, char** argv)
         return 1;
     }
     std::cout << "Read mode:\t" << args->GetReadMode() << std::endl;
+    std::cout << "Write mode:\t" << args->GetWriteMode() << std::endl;
     std::cout << "Destination:\t" << args->GetDestinationPath() << std::endl;
     std::cout << "Is dest set?\t" << !(args->GetDestinationPath().empty()) << std::endl;
     std::cout << "Mode:\t\t" << args->GetMode() << std::endl;
     std::cout << "Timeout:\t" << args->GetTimeout() << std::endl;
     std::cout << "Size:\t\t" << args->GetSize() << std::endl;
     std::cout << "Address:\t" << args->GetAddress() << std::endl;
+    std::cout << "Multicast?\t" << args->GetMulticast() << std::endl;
     delete args;
     return 0;
 }
