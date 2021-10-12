@@ -48,45 +48,45 @@ void ArgumentParser::ParseWrite()
     WriteMode = true;
 }
 
-void ArgumentParser::ParseDestination(bool& destinationFlag, char* optarg)
+void ArgumentParser::ParseDestination(bool& destinationFlag, std::string optionArg)
 {
     if (destinationFlag)
         throw std::invalid_argument("Argument -d is already set to '" + DestinationPath + "'.");
 
-    DestinationPath = optarg;
+    DestinationPath = optionArg;
     destinationFlag = true;
 }
 
-void ArgumentParser::ParseTimeout(bool& timeoutFlag, char* optarg)
+void ArgumentParser::ParseTimeout(bool& timeoutFlag, std::string optionArg)
 {
     if (timeoutFlag)
         throw std::invalid_argument("Argument -t is already set to '" + std::to_string(Timeout) + "'.");
     try
     {
-        Timeout = std::stoi(optarg);
+        Timeout = std::stoi(optionArg);
         if (Timeout < 0)
             throw std::exception();
     }
     catch (const std::exception &e)
     {
-        throw std::invalid_argument("Invalud value for argument -t: " + (std::string)optarg);
+        throw std::invalid_argument("Invalud value for argument -t: " + (std::string)optionArg);
     }
     timeoutFlag = true;
 }
 
-void ArgumentParser::ParseSize(bool& sizeFlag, char* optarg)
+void ArgumentParser::ParseSize(bool& sizeFlag, std::string optionArg)
 {
     if (sizeFlag)
         throw std::invalid_argument("Argument -s is already set to '" + std::to_string(Size) + "'.");
     try
     {
-        Size = std::stoi(optarg);
+        Size = std::stoi(optionArg);
         if (Size < 0)
             throw std::exception();
     }
     catch (const std::exception &e)
     {
-        throw std::invalid_argument("Invalud value for argument -s: " + (std::string)optarg);
+        throw std::invalid_argument("Invalud value for argument -s: " + (std::string)optionArg);
     }
     sizeFlag = true;
 }
@@ -99,30 +99,28 @@ void ArgumentParser::ParseMulticast()
     Multicast = true;
 }
 
-void ArgumentParser::ParseMode(bool& modeFlag, char* optarg)
+void ArgumentParser::ParseMode(bool& modeFlag, std::string optionArg)
 {
     if (modeFlag)
         throw std::invalid_argument("Argument -c is already set to '" + std::to_string(Mode) + "'.");
 
-    if (strcmp(optarg, "binary") == 0 || strcmp(optarg, "octet") == 0)
+    if (optionArg == "binary" || optionArg == "octet")
         Mode = BINARY;
 
-    else if (strcmp(optarg, "ascii") == 0 || strcmp(optarg, "netascii") == 0)
+    else if (optionArg == "ascii" || optionArg == "netascii")
         Mode = ASCII;
 
-    else
-        throw std::invalid_argument("Invalid value for argument -c: " + (std::string)optarg);
-    
+    else throw std::invalid_argument("Invalid value for argument -c: " + (std::string)optionArg);
     modeFlag = true;
 }
 
-void ArgumentParser::ParseAddress(bool& addressFlag, char* optarg)
+void ArgumentParser::ParseAddress(bool& addressFlag, std::string optionArg)
 {
     if (addressFlag)
         throw std::invalid_argument("Argument -a already set to '" + Address + "'.");
 
     //TODO: #1 IP address parsing...
-    Address = optarg;
+    Address = optionArg;
     addressFlag = true;
 }
 

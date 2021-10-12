@@ -35,10 +35,10 @@ class ArgumentParser
     private: // Private parsing methods for constructor design and simplification.
         void ParseRead();
         void ParseWrite();
-        void ParseDestination(bool& destinationFlag, char* optarg);
-        void ParseTimeout(bool& timeoutFlag, char* optarg);
-        void ParseSize(bool& sizeFlag, char* optarg);
+        void ParseDestination(bool& destinationFlag, std::string optarg);
+        void ParseTimeout(bool& timeoutFlag, std::string optarg);
+        void ParseSize(bool& sizeFlag, std::string optarg);
         void ParseMulticast();
-        void ParseMode(bool& modeFlag, char* optarg);
-        void ParseAddress(bool& addressFlag, char* optarg);
+        void ParseMode(bool& modeFlag, std::string optarg);
+        void ParseAddress(bool& addressFlag, std::string optarg);
 };

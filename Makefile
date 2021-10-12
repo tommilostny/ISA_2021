@@ -7,6 +7,3 @@ mytftpclient: $(OBJS)
 
 clean:
 	rm -f *.o mytftpclient
-
-run: mytftpclient
-	./mytftpclient
