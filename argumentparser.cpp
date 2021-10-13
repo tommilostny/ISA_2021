@@ -7,7 +7,7 @@
 #include "argumentparser.h"
 
 /// Initialize argv and argc from string for getopt function.
-void _ArgsForGetops(std::string args, int& argc, char**& argv)
+void _ArgsForGetopt(std::string args, int& argc, char**& argv)
 {
     // Initialize argc to 1 and first argv item to program name.
     argc = 1;
@@ -64,9 +64,11 @@ ArgumentParser::ArgumentParser(std::string args)
 {
     // Initialize class attributes default values.
     ReadMode = WriteMode = Multicast = false;
-    DestinationPath = "";
-    Address = "";
-    IpVersion = Timeout = Size = 0;
+    Timeout = 0;
+    Size = 512;
+    Address = "127.0.0.1";
+    IpVersion = 4;
+    Port = 69;
     Mode = BINARY;
 
     // Load argc and argv for getopt from string.
@@ -74,7 +76,7 @@ ArgumentParser::ArgumentParser(std::string args)
     char** argv;
     try
     {
-        _ArgsForGetops(args, argc, argv);
+        _ArgsForGetopt(args, argc, argv);
     }
     catch (const std::runtime_error& e) // Catch possible memory allocation error.
     {
@@ -155,7 +157,7 @@ void ArgumentParser::ParseTimeout(bool& timeoutFlag, std::string optionArg)
         if (Timeout < 0)
             throw std::exception();
     }
-    catch (const std::exception &e)
+    catch (const std::exception&)
     {
         throw std::invalid_argument("Invalid value for argument -t: " + (std::string)optionArg);
     }
@@ -172,7 +174,7 @@ void ArgumentParser::ParseSize(bool& sizeFlag, std::string optionArg)
         if (Size < 0)
             throw std::exception();
     }
-    catch (const std::exception &e)
+    catch (const std::exception&)
     {
         throw std::invalid_argument("Invalid value for argument -s: " + (std::string)optionArg);
     }
@@ -202,6 +204,28 @@ void ArgumentParser::ParseMode(bool& modeFlag, std::string optionArg)
     modeFlag = true;
 }
 
+// Helper function for parsing IP address argument.
+// If address contains a port number after ':' it is extracted and saved in destination parameter.
+void _ExtractPort(std::string& address, int& portDest)
+{
+    int colonPos = address.find_last_of(':');
+    if (colonPos != -1)
+    {
+        auto portStr = address.substr(colonPos + 1);
+        try
+        {
+            portDest = std::stoi(portStr);
+        }
+        catch (const std::exception&)
+        {
+            throw std::invalid_argument("Invalid port entered: " + portStr);
+        }
+        address.erase(colonPos);
+    }
+}
+
+// Helper function for parsing an IP address argument.
+// Checks whether given string is a valid IP version 4 address.
 bool _IsIPv4(std::string address)
 {
     int partsCount = 0;
@@ -223,7 +247,7 @@ bool _IsIPv4(std::string address)
                 address.erase(0, dotPosition + 1);
         }
     }
-    catch (const std::exception& e)
+    catch (const std::exception&)
     {
         return false;
     }
@@ -233,6 +257,8 @@ bool _IsIPv4(std::string address)
     return true;
 }
 
+// Helper function for parsing an IP address argument.
+// Checks whether given string is a valid IP version 6 address.
 bool _IsIPv6(std::string address)
 {
     return false;
@@ -243,6 +269,7 @@ void ArgumentParser::ParseAddress(bool& addressFlag, std::string optionArg)
     if (addressFlag)
         throw std::invalid_argument("Argument -a already set to '" + Address + "'.");
 
+    _ExtractPort(optionArg, Port);
     IpVersion = _IsIPv4(optionArg) ? 4 : _IsIPv6(optionArg) ? 6 : throw std::invalid_argument("Bad IP address format: " + optionArg);
     Address = optionArg;
     addressFlag = true;
@@ -264,4 +291,6 @@ enum Mode ArgumentParser::GetMode()                 { return Mode; }
 
 std::string ArgumentParser::GetAddress()            { return Address; }
 
-short ArgumentParser::GetAddressVersion()           { return IpVersion; }
+int ArgumentParser::GetAddressVersion()             { return IpVersion; }
+
+int ArgumentParser::GetPort()                       { return Port; }
