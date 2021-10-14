@@ -11,22 +11,22 @@ void _ArgsForGetopt(std::string args, int& argc, char**& argv)
 {
     // Initialize argc to 1 and first argv item to program name.
     argc = 1;
-    auto arg1 = (char*)malloc(15 * sizeof(char));
+    auto arg1 = (char*)malloc(13 * sizeof(char));
     if (arg1 == NULL)
         throw std::runtime_error("Unable to allocate memory.");
 
-    strcpy(arg1, (char*)"mytftpclient");
-
-    // Temporaty vector of loaded arguments.
+    // Fill program name array memory, set it as first item of a temporaty vector of loaded arguments.
+    strcpy(arg1, "mytftpclient");
     std::vector<char*> argsVect = { arg1 };
 
     while (!args.empty())
     {
-        // Get a substing from start to first whitespace character.
+        // Get a substing from start to first whitespace character
+        // or port with ',' and whitespaces for IP addresses.
         std::smatch match;
-        std::regex_search(args, match, std::regex("\\s"));
-        auto spacePos = match.position();
-        auto arg = args.substr(0, spacePos);
+        std::regex_search(args, match, std::regex("\\s+(,\\s*.{1,5})?"));
+        auto spacePos = match.position() + match.length();
+        auto arg = std::regex_replace(args.substr(0, spacePos), std::regex("\\s"), "");
 
         if (!arg.empty()) // Loaded an actual option? Skip unnecessary whitespaces.
         {
@@ -40,9 +40,12 @@ void _ArgsForGetopt(std::string args, int& argc, char**& argv)
             argc++;
         }
         if (spacePos == -1) // No more whitespaces found (end of string), make it empty.
+        {
             args = "";
-        else // Erase matched option from the string before loading another.
-            args.erase(0, spacePos + 1);
+            break;
+        }
+        // Erase matched option from the string before loading another.
+        args.erase(0, spacePos);
     }
     // All options loaded, save them to a new char pointer array argv.
     if ((argv = (char**)malloc(argc * sizeof(char*))) == NULL)
@@ -72,8 +75,7 @@ ArgumentParser::ArgumentParser(std::string args)
     Mode = BINARY;
 
     // Load argc and argv for getopt from string.
-    int argc;
-    char** argv;
+    int argc; char** argv;
     try
     {
         _ArgsForGetopt(args, argc, argv);
@@ -125,7 +127,7 @@ ArgumentParser::ArgumentParser(std::string args)
 void ArgumentParser::ParseRead()
 {
     if (ReadMode || WriteMode)
-        throw std::invalid_argument("Argument -W or -R is already set.");
+        throw std::invalid_argument("Argument -W/-R can't be set twice.");
 
     ReadMode = true;
 }
@@ -133,7 +135,7 @@ void ArgumentParser::ParseRead()
 void ArgumentParser::ParseWrite()
 {
     if (WriteMode || ReadMode)
-        throw std::invalid_argument("Argument -W or -R is already set.");
+        throw std::invalid_argument("Argument -W/-R can't be set twice.");
 
     WriteMode = true;
 }
@@ -154,7 +156,7 @@ void ArgumentParser::ParseTimeout(bool& timeoutFlag, std::string optionArg)
     try
     {
         Timeout = std::stoi(optionArg);
-        if (Timeout < 0)
+        if (Timeout <= 0)
             throw std::exception();
     }
     catch (const std::exception&)
@@ -208,13 +210,15 @@ void ArgumentParser::ParseMode(bool& modeFlag, std::string optionArg)
 // If address contains a port number after ':' it is extracted and saved in destination parameter.
 void _ExtractPort(std::string& address, int& portDest)
 {
-    int colonPos = address.find_last_of(':');
+    int colonPos = address.find_last_of(',');
     if (colonPos != -1)
     {
         auto portStr = address.substr(colonPos + 1);
         try
         {
             portDest = std::stoi(portStr);
+            if (portDest <= 0 || portDest > 65535)
+                throw std::exception();
         }
         catch (const std::exception&)
         {

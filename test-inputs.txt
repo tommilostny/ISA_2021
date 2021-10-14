@@ -2,5 +2,8 @@
 -d lol2.png -t 300 -m -a 192.168.30.150 -R
 -t 50 -a 55.66.77.88 -d filexx -W -m
 -m -c  ascii  -a 77.44.255.10 -d  opopopo.txt -R  -t      500 -s400
--d hbhb -W -a vjnkwjvnkj
--R -d /home/user/readme.txt -a 147.229.181.2 , 169 -c   octet -w
+-R -d /home/user/readme.txt -a 147.229.181.2,44 , 169 -c   octet
+-d hbhb -W -a 26.66.66.66,5
+-d hbhb -W -a 26.66.66,5
+-d hbhb -W -a 26.kwj.66.66  ,  5
+-d knhhk -W -a192.168.1.23   ,   56789   -t  98    -s12
