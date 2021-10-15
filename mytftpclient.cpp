@@ -28,7 +28,7 @@ int main()
         std::cout << "Timeout:\t" << argParser->GetTimeout() << std::endl;
         std::cout << "Size:\t\t" << argParser->GetSize() << std::endl;
         std::cout << "Multicast:\t" << argParser->GetMulticast() << std::endl;
-        std::cout << "Address:\t" << argParser->GetAddress() << std::endl;
+        std::cout << "Address:\t" << argParser->GetAddressString() << std::endl;
         std::cout << "IP version:\t" << argParser->GetAddressVersion() << std::endl;
         std::cout << "Port:\t\t" << argParser->GetPort() << std::endl;
         delete argParser;

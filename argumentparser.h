@@ -1,10 +1,18 @@
 #pragma once
+#include <arpa/inet.h>
 #include <string>
 
 // Aliases for -c argument options.
 enum Mode
 {
     BINARY, ASCII
+};
+
+// Holds either IPv4 or IPv6 struct value.
+union AddressHolder
+{
+    struct in_addr V4;
+    struct in6_addr V6;
 };
 
 class ArgumentParser
@@ -17,9 +25,10 @@ class ArgumentParser
         int GetSize();
         bool GetMulticast();
         enum Mode GetMode();
-        std::string GetAddress();
+        union AddressHolder GetAddress();
         int GetAddressVersion();
         int GetPort();
+        std::string GetAddressString();
         
         // Parse given program parameters into ArgumentParser class attributes.
         ArgumentParser(std::string args);
@@ -32,9 +41,10 @@ class ArgumentParser
         int Size;                       // Argument -s, max size of blocks in octets.
         bool Multicast;                 // Argument -m, enables multicast communication.
         enum Mode Mode;                 // Argument -c, mode decoded from "binary"/"octet" and "ascii"/"netascii".
-        std::string Address;            // Argument -a, IPv4 or IPv6 address.
-        int IpVersion;                  // 4 or 6 for valid Address.
-        int Port;
+        union AddressHolder Address;    // Argument -a, IPv4 or IPv6 address.
+        int IpVersion;                  // AF_INET or AF_INET6
+        int Port;                       // Argument -a after ',' symbol
+        std::string AddrStr;            // Address in string form
 
     private: // Private parsing methods for constructor design and simplification.
         void ParseRead();

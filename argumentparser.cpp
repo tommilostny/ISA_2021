@@ -69,8 +69,8 @@ ArgumentParser::ArgumentParser(std::string args)
     ReadMode = WriteMode = Multicast = false;
     Timeout = 0;
     Size = 512;
-    Address = "127.0.0.1";
-    IpVersion = 4;
+    AddrStr = "127.0.0.1";
+    IpVersion = AF_INET;
     Port = 69;
     Mode = BINARY;
 
@@ -120,6 +120,12 @@ ArgumentParser::ArgumentParser(std::string args)
         // Exception thrown while parsing an argument, free the memory before rethrowing.
         _FreeArgv(argc, argv);
         throw e;
+    }
+    if (!addrFlag) // Argument -a was not set, create a struct from default (localhost).
+    {
+        unsigned char buffer[sizeof(struct in_addr)];
+        inet_pton(IpVersion, AddrStr.c_str(), buffer);
+        memcpy(&Address, buffer, sizeof(struct in_addr));
     }
     _FreeArgv(argc, argv);
 }
@@ -228,54 +234,33 @@ void _ExtractPort(std::string& address, int& portDest)
     }
 }
 
-// Helper function for parsing an IP address argument.
-// Checks whether given string is a valid IP version 4 address.
-bool _IsIPv4(std::string address)
-{
-    int partsCount = 0;
-    try
-    {
-        while (!address.empty())
-        {
-            int dotPosition = address.find('.');
-            auto part = address.substr(0, dotPosition);
-
-            int partVal = std::stoi(part);
-            if (partVal > 255 || partVal < 0)
-                return false;
-            partsCount++;
-            
-            if (dotPosition == -1)
-                address = "";
-            else
-                address.erase(0, dotPosition + 1);
-        }
-    }
-    catch (const std::exception&)
-    {
-        return false;
-    }
-    if (partsCount != 4)
-        return false;
-
-    return true;
-}
-
-// Helper function for parsing an IP address argument.
-// Checks whether given string is a valid IP version 6 address.
-bool _IsIPv6(std::string address)
-{
-    return false;
-}
-
 void ArgumentParser::ParseAddress(bool& addressFlag, std::string optionArg)
 {
     if (addressFlag)
-        throw std::invalid_argument("Argument -a already set to '" + Address + "'.");
+        throw std::invalid_argument("Argument -a already set to '" + AddrStr + "'.");
 
     _ExtractPort(optionArg, Port);
-    IpVersion = _IsIPv4(optionArg) ? 4 : _IsIPv6(optionArg) ? 6 : throw std::invalid_argument("Bad IP address format: " + optionArg);
-    Address = optionArg;
+
+    // Create and check IP address struct, based on "man inet_pton" example.
+    unsigned char buffer[sizeof(struct in6_addr)];
+    int status;
+    char str[INET6_ADDRSTRLEN];
+
+    status = inet_pton(IpVersion, optionArg.c_str(), buffer);
+    if (status <= 0)
+    {
+        status = inet_pton(IpVersion = AF_INET6, optionArg.c_str(), buffer);
+        if (status <= 0)
+            throw std::invalid_argument("inet_pton: Bad IP address format: " + optionArg);
+        
+        memcpy(&Address, buffer, sizeof(struct in6_addr));
+    }
+    else memcpy(&Address, buffer, sizeof(struct in_addr));
+
+    if (inet_ntop(IpVersion, buffer, str, INET6_ADDRSTRLEN) == NULL) {
+        throw std::invalid_argument("inet_ntop: Bad IP address format: " + optionArg);
+    }
+    AddrStr = str;
     addressFlag = true;
 }
 
@@ -293,8 +278,10 @@ bool ArgumentParser::GetMulticast()                 { return Multicast; }
 
 enum Mode ArgumentParser::GetMode()                 { return Mode; }
 
-std::string ArgumentParser::GetAddress()            { return Address; }
+union AddressHolder ArgumentParser::GetAddress()    { return Address; }
 
 int ArgumentParser::GetAddressVersion()             { return IpVersion; }
 
 int ArgumentParser::GetPort()                       { return Port; }
+
+std::string ArgumentParser::GetAddressString()      { return AddrStr; }
