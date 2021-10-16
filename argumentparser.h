@@ -1,58 +1,68 @@
 #pragma once
+/**
+ * @brief Argument parser class module.
+ * @author Tomáš Milostný (xmilos02)
+ */
 #include <arpa/inet.h>
 #include <string>
 
-// Aliases for -c argument options.
-enum Mode
+/// Aliases for -c argument options.
+typedef enum transfer_mode
 {
     BINARY, ASCII
-};
+}
+TransferMode;
 
-// Holds either IPv4 or IPv6 struct value.
-union AddressHolder
+/// Holds either IPv4 or IPv6 struct value.
+typedef union address_holder
 {
-    struct in_addr V4;
-    struct in6_addr V6;
-};
+    struct in_addr  v4;
+    struct in6_addr v6;
+}
+AddressHolder;
 
+/**
+ * @brief TFTP client argument parsing class.
+ * @exception std::invalid_argument
+ */
 class ArgumentParser
 {
-    public: // Getter metods to make attributes read only after being parsed by the constructor.
-        bool GetReadMode();
-        bool GetWriteMode();
-        std::string GetDestinationPath();
-        int GetTimeout();
-        int GetSize();
-        bool GetMulticast();
-        enum Mode GetMode();
-        union AddressHolder GetAddress();
-        int GetAddressVersion();
-        int GetPort();
-        std::string GetAddressString();
+    public: // Getter methods to make attributes read only after being parsed by the constructor.
+        bool          get_read_mode();
+        bool          get_write_mode();
+        std::string   get_destination_path();
+        int           get_timeout();
+        int           get_size();
+        bool          get_multicast();
+        TransferMode  get_transfer_mode();
+        AddressHolder get_address();
+        int           get_address_version();
+        int           get_port();
+        std::string   get_address_string();
         
         // Parse given program parameters into ArgumentParser class attributes.
         ArgumentParser(std::string args);
 
-    protected:
-        bool ReadMode;                  // Argument -R, read mode (required if -W is not set, otherwise forbidden).
-        bool WriteMode;                 // Argument -W, write mode (required if -R is not set, otherwise forbidden).
-        std::string DestinationPath;    // Argument -d, destination file to (read to)/(write from) (required).
-        int Timeout;                    // Argument -t, timeout in seconds.
-        int Size;                       // Argument -s, max size of blocks in octets.
-        bool Multicast;                 // Argument -m, enables multicast communication.
-        enum Mode Mode;                 // Argument -c, mode decoded from "binary"/"octet" and "ascii"/"netascii".
-        union AddressHolder Address;    // Argument -a, IPv4 or IPv6 address.
-        int IpVersion;                  // AF_INET or AF_INET6
-        int Port;                       // Argument -a after ',' symbol
-        std::string AddrStr;            // Address in string form
+    protected: // Fields for application arguments.
+        bool          _read_mode;        // Argument -R, read mode (required if -W is not set, otherwise forbidden).
+        bool          _write_mode;       // Argument -W, write mode (required if -R is not set, otherwise forbidden).
+        std::string   _destination_path; // Argument -d, destination file to (read to)/(write from) (required).
+        int           _timeout;          // Argument -t, timeout in seconds.
+        int           _size;             // Argument -s, max size of blocks in octets.
+        bool          _multicast;        // Argument -m, enables multicast communication.
+        TransferMode  _transfer_mode;    // Argument -c, mode decoded from "binary"/"octet" and "ascii"/"netascii".
+        AddressHolder _address;          // Argument -a, IPv4 or IPv6 address.
+        int           _ip_version;       // AF_INET or AF_INET6
+        int           _port;             // Argument -a after ',' symbol
+        std::string   _addr_str;         // Address in string form
 
     private: // Private parsing methods for constructor design and simplification.
-        void ParseRead();
-        void ParseWrite();
-        void ParseDestination(bool& destinationFlag, std::string optionArg);
-        void ParseTimeout(bool& timeoutFlag, std::string optionArg);
-        void ParseSize(bool& sizeFlag, std::string optionArg);
-        void ParseMulticast();
-        void ParseMode(bool& modeFlag, std::string optionArg);
-        void ParseAddress(bool& addressFlag, std::string optionArg);
+        void parse_read();
+        void parse_write();
+        void parse_destination(bool& destination_flag, std::string option_arg);
+        void parse_timeout(bool& timeout_flag, std::string option_arg);
+        void parse_size(bool& size_flag, std::string option_arg);
+        void parse_multicast();
+        void parse_mode(bool& mode_flag, std::string option_arg);
+        void parse_address(bool& address_flag, std::string option_arg);
 };

@@ -1,3 +1,7 @@
+/**
+ * @brief Argument parser class implementation.
+ * @author Tomáš Milostný (xmilos02)
+ */
 #include <getopt.h>
 #include <string.h>
 #include <malloc.h>
@@ -7,17 +11,17 @@
 #include "argumentparser.h"
 
 /// Initialize argv and argc from string for getopt function.
-void _ArgsForGetopt(std::string args, int& argc, char**& argv)
+void _args_for_getopt(std::string args, int& argc, char**& argv)
 {
     // Initialize argc to 1 and first argv item to program name.
     argc = 1;
-    auto arg1 = (char*)malloc(13 * sizeof(char));
-    if (arg1 == NULL)
+    auto prog_arg = (char*)malloc(13 * sizeof(char));
+    if (prog_arg == NULL)
         throw std::runtime_error("Unable to allocate memory.");
 
     // Fill program name array memory, set it as first item of a temporaty vector of loaded arguments.
-    strcpy(arg1, "mytftpclient");
-    std::vector<char*> argsVect = { arg1 };
+    strcpy(prog_arg, "mytftpclient");
+    std::vector<char*> args_vect = { prog_arg };
 
     while (!args.empty())
     {
@@ -25,38 +29,38 @@ void _ArgsForGetopt(std::string args, int& argc, char**& argv)
         // or port with ',' and whitespaces for IP addresses.
         std::smatch match;
         std::regex_search(args, match, std::regex("\\s+(,\\s*.{1,5})?"));
-        auto spacePos = match.position() + match.length();
-        auto arg = std::regex_replace(args.substr(0, spacePos), std::regex("\\s"), "");
+        auto space_pos = match.position() + match.length();
+        auto arg = std::regex_replace(args.substr(0, space_pos), std::regex("\\s"), "");
 
         if (!arg.empty()) // Loaded an actual option? Skip unnecessary whitespaces.
         {
             // Copy substring to a new character array and save it in the temporary vector.
-            auto array = (char*)malloc((arg.length() + 1) * sizeof(char));
-            if (array == NULL)
+            auto arg_array = (char*)malloc((arg.length() + 1) * sizeof(char));
+            if (arg_array == NULL)
                 throw std::runtime_error("Unable to allocate memory.");
 
-            strcpy(array, arg.c_str());
-            argsVect.push_back(array);
+            strcpy(arg_array, arg.c_str());
+            args_vect.push_back(arg_array);
             argc++;
         }
-        if (spacePos == -1) // No more whitespaces found (end of string), make it empty.
+        if (space_pos == -1) // No more whitespaces found (end of string), make it empty.
         {
             args = "";
             break;
         }
         // Erase matched option from the string before loading another.
-        args.erase(0, spacePos);
+        args.erase(0, space_pos);
     }
     // All options loaded, save them to a new char pointer array argv.
     if ((argv = (char**)malloc(argc * sizeof(char*))) == NULL)
         throw std::runtime_error("Unable to allocate memory.");
 
     for (int i = 0; i < argc; i++)
-        argv[i] = argsVect[i];
+        argv[i] = args_vect[i];
 }
 
 /// Free all memory used by created argv array.
-void _FreeArgv(int argc, char** argv)
+void _free_argv(int argc, char** argv)
 {
     for (int i = 0; i < argc; i++)
         free(argv[i]);
@@ -66,26 +70,26 @@ void _FreeArgv(int argc, char** argv)
 ArgumentParser::ArgumentParser(std::string args)
 {
     // Initialize class attributes default values.
-    ReadMode = WriteMode = Multicast = false;
-    Timeout = 0;
-    Size = 512;
-    AddrStr = "127.0.0.1";
-    IpVersion = AF_INET;
-    Port = 69;
-    Mode = BINARY;
+    _read_mode = _write_mode = _multicast = false;
+    _timeout = 0;
+    _size = 512;
+    _addr_str = "127.0.0.1";
+    _ip_version = AF_INET;
+    _port = 69;
+    _transfer_mode = BINARY;
 
     // Load argc and argv for getopt from string.
     int argc; char** argv;
     try
     {
-        _ArgsForGetopt(args, argc, argv);
+        _args_for_getopt(args, argc, argv);
     }
     catch (const std::runtime_error& e) // Catch possible memory allocation error.
     {
         throw std::invalid_argument(e.what());
     }
     // Arguments loaded, prepare flags and reset getopt.
-    bool destFlag = false, timeoutFlag = false, sizeFlag = false, modeFlag = false, addrFlag = false;
+    bool dest_flag = false, timeout_flag = false, size_flag = false, mode_flag = false, addr_flag = false;
     int option;
     optind = 0;
     try
@@ -95,193 +99,194 @@ ArgumentParser::ArgumentParser(std::string args)
         {
             switch (option)
             {
-            case 'R':   ParseRead();                        break;
-            case 'W':   ParseWrite();                       break;
-            case 'd':   ParseDestination(destFlag, optarg); break;
-            case 't':   ParseTimeout(timeoutFlag, optarg);  break;
-            case 's':   ParseSize(sizeFlag, optarg);        break;
-            case 'm':   ParseMulticast();                   break;
-            case 'c':   ParseMode(modeFlag, optarg);        break;
-            case 'a':   ParseAddress(addrFlag, optarg);     break;
+            case 'R':   parse_read();                           break;
+            case 'W':   parse_write();                          break;
+            case 'd':   parse_destination(dest_flag, optarg);   break;
+            case 't':   parse_timeout(timeout_flag, optarg);    break;
+            case 's':   parse_size(size_flag, optarg);          break;
+            case 'm':   parse_multicast();                      break;
+            case 'c':   parse_mode(mode_flag, optarg);          break;
+            case 'a':   parse_address(addr_flag, optarg);       break;
             default:
                 throw std::invalid_argument(args);
                 break;
             }
         }
         // Check for required -R/-W and -d arguments.
-        if (!ReadMode && !WriteMode)
+        if (!_read_mode && !_write_mode)
             throw std::invalid_argument("Missing required argument -R (read mode) or -W (write mode).");
 
-        if (!destFlag)
+        if (!dest_flag)
             throw std::invalid_argument("Missing required argument -d <file-path>.");
     }
     catch (const std::invalid_argument& e)
     {
         // Exception thrown while parsing an argument, free the memory before rethrowing.
-        _FreeArgv(argc, argv);
+        _free_argv(argc, argv);
         throw e;
     }
-    if (!addrFlag) // Argument -a was not set, create a struct from default (localhost).
+    if (!addr_flag) // Argument -a was not set, create a struct from default (localhost).
     {
         unsigned char buffer[sizeof(struct in_addr)];
-        inet_pton(IpVersion, AddrStr.c_str(), buffer);
-        memcpy(&Address, buffer, sizeof(struct in_addr));
+        inet_pton(_ip_version, _addr_str.c_str(), buffer);
+        memcpy(&_address, buffer, sizeof(struct in_addr));
     }
-    _FreeArgv(argc, argv);
+    _free_argv(argc, argv);
 }
 
-void ArgumentParser::ParseRead()
+void ArgumentParser::parse_read()
 {
-    if (ReadMode || WriteMode)
+    if (_read_mode || _write_mode)
         throw std::invalid_argument("Argument -W/-R can't be set twice.");
 
-    ReadMode = true;
+    _read_mode = true;
 }
 
-void ArgumentParser::ParseWrite()
+void ArgumentParser::parse_write()
 {
-    if (WriteMode || ReadMode)
+    if (_write_mode || _read_mode)
         throw std::invalid_argument("Argument -W/-R can't be set twice.");
 
-    WriteMode = true;
+    _write_mode = true;
 }
 
-void ArgumentParser::ParseDestination(bool& destinationFlag, std::string optionArg)
+void ArgumentParser::parse_destination(bool& dest_flag, std::string option_arg)
 {
-    if (destinationFlag)
-        throw std::invalid_argument("Argument -d is already set to '" + DestinationPath + "'.");
+    if (dest_flag)
+        throw std::invalid_argument("Argument -d is already set to '" + _destination_path + "'.");
 
-    DestinationPath = optionArg;
-    destinationFlag = true;
+    _destination_path = option_arg;
+    dest_flag = true;
 }
 
-void ArgumentParser::ParseTimeout(bool& timeoutFlag, std::string optionArg)
+void ArgumentParser::parse_timeout(bool& timeout_flag, std::string option_arg)
 {
-    if (timeoutFlag)
-        throw std::invalid_argument("Argument -t is already set to '" + std::to_string(Timeout) + "'.");
+    if (timeout_flag)
+        throw std::invalid_argument("Argument -t is already set to '" + std::to_string(_timeout) + "'.");
     try
     {
-        Timeout = std::stoi(optionArg);
-        if (Timeout <= 0)
+        _timeout = std::stoi(option_arg);
+        if (_timeout <= 0)
             throw std::exception();
     }
     catch (const std::exception&)
     {
-        throw std::invalid_argument("Invalid value for argument -t: " + (std::string)optionArg);
+        throw std::invalid_argument("Invalid value for argument -t: " + (std::string)option_arg);
     }
-    timeoutFlag = true;
+    timeout_flag = true;
 }
 
-void ArgumentParser::ParseSize(bool& sizeFlag, std::string optionArg)
+void ArgumentParser::parse_size(bool& size_flag, std::string option_arg)
 {
-    if (sizeFlag)
-        throw std::invalid_argument("Argument -s is already set to '" + std::to_string(Size) + "'.");
+    if (size_flag)
+        throw std::invalid_argument("Argument -s is already set to '" + std::to_string(_size) + "'.");
     try
     {
-        Size = std::stoi(optionArg);
-        if (Size < 0)
+        _size = std::stoi(option_arg);
+        if (_size < 0)
             throw std::exception();
     }
     catch (const std::exception&)
     {
-        throw std::invalid_argument("Invalid value for argument -s: " + (std::string)optionArg);
+        throw std::invalid_argument("Invalid value for argument -s: " + (std::string)option_arg);
     }
-    sizeFlag = true;
+    size_flag = true;
 }
 
-void ArgumentParser::ParseMulticast()
+void ArgumentParser::parse_multicast()
 {
-    if (Multicast)
+    if (_multicast)
         throw std::invalid_argument("Argument -m is already set.");
 
-    Multicast = true;
+    _multicast = true;
 }
 
-void ArgumentParser::ParseMode(bool& modeFlag, std::string optionArg)
+void ArgumentParser::parse_mode(bool& mode_flag, std::string option_arg)
 {
-    if (modeFlag)
-        throw std::invalid_argument("Argument -c is already set to '" + std::to_string(Mode) + "'.");
+    if (mode_flag)
+        throw std::invalid_argument("Argument -c is already set to '" + std::to_string(_transfer_mode) + "'.");
 
-    if (optionArg == "binary" || optionArg == "octet")
-        Mode = BINARY;
+    if (option_arg == "binary" || option_arg == "octet")
+        _transfer_mode = BINARY;
 
-    else if (optionArg == "ascii" || optionArg == "netascii")
-        Mode = ASCII;
+    else if (option_arg == "ascii" || option_arg == "netascii")
+        _transfer_mode = ASCII;
 
-    else throw std::invalid_argument("Invalid value for argument -c: " + (std::string)optionArg);
-    modeFlag = true;
+    else throw std::invalid_argument("Invalid value for argument -c: " + (std::string)option_arg);
+    mode_flag = true;
 }
 
 // Helper function for parsing IP address argument.
 // If address contains a port number after ':' it is extracted and saved in destination parameter.
-void _ExtractPort(std::string& address, int& portDest)
+void _extract_port(std::string& address, int& port_dest)
 {
-    int colonPos = address.find_last_of(',');
-    if (colonPos != -1)
+    int comma_pos = address.find_last_of(',');
+    if (comma_pos != -1)
     {
-        auto portStr = address.substr(colonPos + 1);
+        auto port_str = address.substr(comma_pos + 1);
         try
         {
-            portDest = std::stoi(portStr);
-            if (portDest <= 0 || portDest > 65535)
+            port_dest = std::stoi(port_str);
+            if (port_dest <= 0 || port_dest > 65535)
                 throw std::exception();
         }
         catch (const std::exception&)
         {
-            throw std::invalid_argument("Invalid port entered: " + portStr);
+            throw std::invalid_argument("Invalid port entered: " + port_str);
         }
-        address.erase(colonPos);
+        address.erase(comma_pos);
     }
 }
 
-void ArgumentParser::ParseAddress(bool& addressFlag, std::string optionArg)
+void ArgumentParser::parse_address(bool& address_flag, std::string option_arg)
 {
-    if (addressFlag)
-        throw std::invalid_argument("Argument -a already set to '" + AddrStr + "'.");
+    if (address_flag)
+        throw std::invalid_argument("Argument -a already set to '" + _addr_str + "'.");
 
-    _ExtractPort(optionArg, Port);
+    // Extract port part of the address option value to _port field.
+    _extract_port(option_arg, _port);
 
     // Create and check IP address struct, based on "man inet_pton" example.
     unsigned char buffer[sizeof(struct in6_addr)];
     int status;
     char str[INET6_ADDRSTRLEN];
 
-    status = inet_pton(IpVersion, optionArg.c_str(), buffer);
+    status = inet_pton(_ip_version, option_arg.c_str(), buffer);
     if (status <= 0)
     {
-        status = inet_pton(IpVersion = AF_INET6, optionArg.c_str(), buffer);
+        status = inet_pton(_ip_version = AF_INET6, option_arg.c_str(), buffer);
         if (status <= 0)
-            throw std::invalid_argument("inet_pton: Bad IP address format: " + optionArg);
+            throw std::invalid_argument("inet_pton: Bad IP address format: " + option_arg);
         
-        memcpy(&Address, buffer, sizeof(struct in6_addr));
+        memcpy(&_address, buffer, sizeof(struct in6_addr));
     }
-    else memcpy(&Address, buffer, sizeof(struct in_addr));
+    else memcpy(&_address, buffer, sizeof(struct in_addr));
 
-    if (inet_ntop(IpVersion, buffer, str, INET6_ADDRSTRLEN) == NULL) {
-        throw std::invalid_argument("inet_ntop: Bad IP address format: " + optionArg);
+    if (inet_ntop(_ip_version, buffer, str, INET6_ADDRSTRLEN) == NULL) {
+        throw std::invalid_argument("inet_ntop: Bad IP address format: " + option_arg);
     }
-    AddrStr = str;
-    addressFlag = true;
+    _addr_str = str;
+    address_flag = true;
 }
 
-bool ArgumentParser::GetReadMode()                  { return ReadMode; }
+bool ArgumentParser::get_read_mode()               { return _read_mode; }
 
-bool ArgumentParser::GetWriteMode()                 { return WriteMode; }
+bool ArgumentParser::get_write_mode()              { return _write_mode; }
 
-std::string ArgumentParser::GetDestinationPath()    { return DestinationPath; }
+std::string ArgumentParser::get_destination_path() { return _destination_path; }
 
-int ArgumentParser::GetTimeout()                    { return Timeout; }
+int ArgumentParser::get_timeout()                  { return _timeout; }
 
-int ArgumentParser::GetSize()                       { return Size; }
+int ArgumentParser::get_size()                     { return _size; }
 
-bool ArgumentParser::GetMulticast()                 { return Multicast; }
+bool ArgumentParser::get_multicast()               { return _multicast; }
 
-enum Mode ArgumentParser::GetMode()                 { return Mode; }
+TransferMode ArgumentParser::get_transfer_mode()   { return _transfer_mode; }
 
-union AddressHolder ArgumentParser::GetAddress()    { return Address; }
+AddressHolder ArgumentParser::get_address()        { return _address; }
 
-int ArgumentParser::GetAddressVersion()             { return IpVersion; }
+int ArgumentParser::get_address_version()          { return _ip_version; }
 
-int ArgumentParser::GetPort()                       { return Port; }
+int ArgumentParser::get_port()                     { return _port; }
 
-std::string ArgumentParser::GetAddressString()      { return AddrStr; }
+std::string ArgumentParser::get_address_string()   { return _addr_str; }

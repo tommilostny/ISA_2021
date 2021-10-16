@@ -1,5 +1,5 @@
 CC = g++
-CXXFLAGS = -std=c++17 -pedantic -Wall -Wextra -g
+CXXFLAGS = -std=c++17 -pedantic -Wall -Wextra -g -DDEBUG
 OBJS = mytftpclient.o argumentparser.o
 
 mytftpclient: $(OBJS)

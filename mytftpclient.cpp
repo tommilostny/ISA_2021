@@ -1,37 +1,50 @@
+/**
+ * @brief TFTP client main module.
+ * @author Tomáš Milostný (xmilos02)
+ */
 #include <iostream>
+#include <algorithm>
 #include "argumentparser.h"
 
 int main()
 {
+    // Load arguments until end of file (loading file redirected to stdin).
     while (!std::cin.eof())
     {
-        ArgumentParser* argParser;
+        ArgumentParser* arg_parser;
         std::string args = "";
 
-        std::cout << std::endl << "> ";
+        std::cout << "> ";
         std::getline(std::cin, args);
-        if (args.empty())
+
+        // Skip and load args again if there are none in stdin.
+        if (args.empty() || std::all_of(args.begin(), args.end(), isspace))
             continue;
-        try
+
+        try // Some args loaded, parse them and store in ArgumentParser class properties.
         {
-            argParser = new ArgumentParser(args);
+            arg_parser = new ArgumentParser(args);
         }
         catch (const std::invalid_argument& exception)
         {
             std::cerr << exception.what() << std::endl;
             continue;
         }
-        std::cout << "Read mode:\t" << argParser->GetReadMode() << std::endl;
-        std::cout << "Write mode:\t" << argParser->GetWriteMode() << std::endl;
-        std::cout << "Destination:\t" << argParser->GetDestinationPath() << std::endl;
-        std::cout << "Mode:\t\t" << argParser->GetMode() << std::endl;
-        std::cout << "Timeout:\t" << argParser->GetTimeout() << std::endl;
-        std::cout << "Size:\t\t" << argParser->GetSize() << std::endl;
-        std::cout << "Multicast:\t" << argParser->GetMulticast() << std::endl;
-        std::cout << "Address:\t" << argParser->GetAddressString() << std::endl;
-        std::cout << "IP version:\t" << argParser->GetAddressVersion() << std::endl;
-        std::cout << "Port:\t\t" << argParser->GetPort() << std::endl;
-        delete argParser;
+        // Debugging messages.
+        #ifdef DEBUG
+        std::cout << "Read mode:\t"   << arg_parser->get_read_mode()        << std::endl;
+        std::cout << "Write mode:\t"  << arg_parser->get_write_mode()       << std::endl;
+        std::cout << "Destination:\t" << arg_parser->get_destination_path() << std::endl;
+        std::cout << "Mode:\t\t"      << arg_parser->get_transfer_mode()    << std::endl;
+        std::cout << "Timeout:\t"     << arg_parser->get_timeout()          << std::endl;
+        std::cout << "Size:\t\t"      << arg_parser->get_size()             << std::endl;
+        std::cout << "Multicast:\t"   << arg_parser->get_multicast()        << std::endl;
+        std::cout << "Address:\t"     << arg_parser->get_address_string()   << std::endl;
+        std::cout << "IP version:\t"  << arg_parser->get_address_version()  << std::endl;
+        std::cout << "Port:\t\t"      << arg_parser->get_port()             << std::endl;
+        #endif
+        // Free the memory used by the class before the next iteration.
+        delete arg_parser;
     }
     return 0;
 }
