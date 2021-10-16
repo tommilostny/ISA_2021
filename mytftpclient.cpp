@@ -4,7 +4,8 @@
  */
 #include <iostream>
 #include <algorithm>
-#include "argumentparser.h"
+
+#include "argumentparser.hpp"
 
 int main()
 {
