@@ -6,13 +6,6 @@
 #include <arpa/inet.h>
 #include <string>
 
-/// Aliases for -c argument options.
-typedef enum transfer_mode
-{
-    BINARY, ASCII
-}
-TransferMode;
-
 /// Holds either IPv4 or IPv6 struct value.
 typedef union address_holder
 {
@@ -34,7 +27,7 @@ class ArgumentParser
         int           get_timeout();
         int           get_size();
         bool          get_multicast();
-        TransferMode  get_transfer_mode();
+        std::string   get_transfer_mode();
         AddressHolder get_address();
         int           get_address_version();
         int           get_port();
@@ -50,7 +43,7 @@ class ArgumentParser
         int           _timeout;          // Argument -t, timeout in seconds.
         int           _size;             // Argument -s, max size of blocks in octets.
         bool          _multicast;        // Argument -m, enables multicast communication.
-        TransferMode  _transfer_mode;    // Argument -c, mode decoded from "binary"/"octet" and "ascii"/"netascii".
+        std::string   _transfer_mode;    // Argument -c, mode decoded from "binary"/"octet" and "ascii"/"netascii".
         AddressHolder _address;          // Argument -a, IPv4 or IPv6 address.
         int           _ip_version;       // AF_INET or AF_INET6
         int           _port;             // Argument -a after ',' symbol

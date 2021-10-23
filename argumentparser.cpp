@@ -28,7 +28,7 @@ void _args_for_getopt(std::string args, int& argc, char**& argv)
         // Get a substing from start to first whitespace character
         // or port with ',' and whitespaces for IP addresses.
         std::smatch match;
-        std::regex_search(args, match, std::regex("\\s+(,\\s*.{1,5})?"));
+        std::regex_search(args, match, std::regex("\\s+(,\\s*\\d{1,5})?"));
         auto space_pos = match.position() + match.length();
         auto arg = std::regex_replace(args.substr(0, space_pos), std::regex("\\s"), "");
 
@@ -69,14 +69,14 @@ void _free_argv(int argc, char** argv)
 
 ArgumentParser::ArgumentParser(std::string args)
 {
-    // Initialize class attributes default values.
+    // Initialize class attributes to default values.
     _read_mode = _write_mode = _multicast = false;
     _timeout = 0;
     _size = 512;
     _addr_str = "127.0.0.1";
     _ip_version = AF_INET;
     _port = 69;
-    _transfer_mode = BINARY;
+    _transfer_mode = "octet";
 
     // Load argc and argv for getopt from string.
     int argc; char** argv;
@@ -119,11 +119,11 @@ ArgumentParser::ArgumentParser(std::string args)
         if (!dest_flag)
             throw std::invalid_argument("Missing required argument -d <file-path>.");
     }
-    catch (const std::invalid_argument& e)
+    catch (const std::invalid_argument&)
     {
         // Exception thrown while parsing an argument, free the memory before rethrowing.
         _free_argv(argc, argv);
-        throw e;
+        throw;
     }
     if (!addr_flag) // Argument -a was not set, create a struct from default (localhost).
     {
@@ -204,13 +204,13 @@ void ArgumentParser::parse_multicast()
 void ArgumentParser::parse_mode(bool& mode_flag, std::string option_arg)
 {
     if (mode_flag)
-        throw std::invalid_argument("Argument -c is already set to '" + std::to_string(_transfer_mode) + "'.");
+        throw std::invalid_argument("Argument -c is already set to '" + _transfer_mode + "'.");
 
     if (option_arg == "binary" || option_arg == "octet")
-        _transfer_mode = BINARY;
+        _transfer_mode = "octet";
 
     else if (option_arg == "ascii" || option_arg == "netascii")
-        _transfer_mode = ASCII;
+        _transfer_mode = "netascii";
 
     else throw std::invalid_argument("Invalid value for argument -c: " + (std::string)option_arg);
     mode_flag = true;
@@ -281,7 +281,7 @@ int ArgumentParser::get_size()                     { return _size; }
 
 bool ArgumentParser::get_multicast()               { return _multicast; }
 
-TransferMode ArgumentParser::get_transfer_mode()   { return _transfer_mode; }
+std::string ArgumentParser::get_transfer_mode()    { return _transfer_mode; }
 
 AddressHolder ArgumentParser::get_address()        { return _address; }
 

@@ -4,7 +4,6 @@
  */
 #include <iostream>
 #include <algorithm>
-
 #include "argumentparser.hpp"
 
 int main()
@@ -41,7 +40,7 @@ int main()
         std::cout << "Size:\t\t"      << arg_parser->get_size()             << std::endl;
         std::cout << "Multicast:\t"   << arg_parser->get_multicast()        << std::endl;
         std::cout << "Address:\t"     << arg_parser->get_address_string()   << std::endl;
-        std::cout << "IP version:\t"  << arg_parser->get_address_version()  << std::endl;
+        std::cout << "IP version:\t"  << (arg_parser->get_address_version() == AF_INET ? "AF_INET" : "AF_INET6") << std::endl;
         std::cout << "Port:\t\t"      << arg_parser->get_port()             << std::endl;
         #endif
         // Free the memory used by the class before the next iteration.
