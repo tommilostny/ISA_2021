@@ -70,13 +70,13 @@ void _free_argv(int argc, char** argv)
 ArgumentParser::ArgumentParser(std::string args)
 {
     // Initialize class attributes to default values.
-    _read_mode = _write_mode = _multicast = false;
-    _timeout = 0;
-    _size = 512;
-    _addr_str = "127.0.0.1";
-    _ip_version = AF_INET;
-    _port = 69;
-    _transfer_mode = "octet";
+    read_mode = write_mode = multicast = false;
+    timeout = 0;
+    size = 512;
+    addr_str = "127.0.0.1";
+    domain = AF_INET;
+    port = 69;
+    transfer_mode = "octet";
 
     // Load argc and argv for getopt from string.
     int argc; char** argv;
@@ -113,7 +113,7 @@ ArgumentParser::ArgumentParser(std::string args)
             }
         }
         // Check for required -R/-W and -d arguments.
-        if (!_read_mode && !_write_mode)
+        if (!read_mode && !write_mode)
             throw std::invalid_argument("Missing required argument -R (read mode) or -W (write mode).");
 
         if (!dest_flag)
@@ -128,45 +128,45 @@ ArgumentParser::ArgumentParser(std::string args)
     if (!addr_flag) // Argument -a was not set, create a struct from default (localhost).
     {
         unsigned char buffer[sizeof(struct in_addr)];
-        inet_pton(_ip_version, _addr_str.c_str(), buffer);
-        memcpy(&_address, buffer, sizeof(struct in_addr));
+        inet_pton(domain, addr_str.c_str(), buffer);
+        memcpy(&socket_hint, buffer, sizeof(struct in_addr));
     }
     _free_argv(argc, argv);
 }
 
 void ArgumentParser::parse_read()
 {
-    if (_read_mode || _write_mode)
+    if (read_mode || write_mode)
         throw std::invalid_argument("Argument -W/-R can't be set twice.");
 
-    _read_mode = true;
+    read_mode = true;
 }
 
 void ArgumentParser::parse_write()
 {
-    if (_write_mode || _read_mode)
+    if (write_mode || read_mode)
         throw std::invalid_argument("Argument -W/-R can't be set twice.");
 
-    _write_mode = true;
+    write_mode = true;
 }
 
 void ArgumentParser::parse_destination(bool& dest_flag, std::string option_arg)
 {
     if (dest_flag)
-        throw std::invalid_argument("Argument -d is already set to '" + _destination_path + "'.");
+        throw std::invalid_argument("Argument -d is already set to '" + destination_path + "'.");
 
-    _destination_path = option_arg;
+    destination_path = option_arg;
     dest_flag = true;
 }
 
 void ArgumentParser::parse_timeout(bool& timeout_flag, std::string option_arg)
 {
     if (timeout_flag)
-        throw std::invalid_argument("Argument -t is already set to '" + std::to_string(_timeout) + "'.");
+        throw std::invalid_argument("Argument -t is already set to '" + std::to_string(timeout) + "'.");
     try
     {
-        _timeout = std::stoi(option_arg);
-        if (_timeout <= 0)
+        timeout = std::stoi(option_arg);
+        if (timeout <= 0)
             throw std::exception();
     }
     catch (const std::exception&)
@@ -179,11 +179,11 @@ void ArgumentParser::parse_timeout(bool& timeout_flag, std::string option_arg)
 void ArgumentParser::parse_size(bool& size_flag, std::string option_arg)
 {
     if (size_flag)
-        throw std::invalid_argument("Argument -s is already set to '" + std::to_string(_size) + "'.");
+        throw std::invalid_argument("Argument -s is already set to '" + std::to_string(size) + "'.");
     try
     {
-        _size = std::stoi(option_arg);
-        if (_size < 0)
+        size = std::stoi(option_arg);
+        if (size < 0)
             throw std::exception();
     }
     catch (const std::exception&)
@@ -195,22 +195,22 @@ void ArgumentParser::parse_size(bool& size_flag, std::string option_arg)
 
 void ArgumentParser::parse_multicast()
 {
-    if (_multicast)
+    if (multicast)
         throw std::invalid_argument("Argument -m is already set.");
 
-    _multicast = true;
+    multicast = true;
 }
 
 void ArgumentParser::parse_mode(bool& mode_flag, std::string option_arg)
 {
     if (mode_flag)
-        throw std::invalid_argument("Argument -c is already set to '" + _transfer_mode + "'.");
+        throw std::invalid_argument("Argument -c is already set to '" + transfer_mode + "'.");
 
     if (option_arg == "binary" || option_arg == "octet")
-        _transfer_mode = "octet";
+        transfer_mode = "octet";
 
     else if (option_arg == "ascii" || option_arg == "netascii")
-        _transfer_mode = "netascii";
+        transfer_mode = "netascii";
 
     else throw std::invalid_argument("Invalid value for argument -c: " + (std::string)option_arg);
     mode_flag = true;
@@ -241,52 +241,36 @@ void _extract_port(std::string& address, int& port_dest)
 void ArgumentParser::parse_address(bool& address_flag, std::string option_arg)
 {
     if (address_flag)
-        throw std::invalid_argument("Argument -a already set to '" + _addr_str + "'.");
+        throw std::invalid_argument("Argument -a already set to '" + addr_str + "'.");
 
-    // Extract port part of the address option value to _port field.
-    _extract_port(option_arg, _port);
+    // Extract port part of the address option value to port field.
+    _extract_port(option_arg, port);
 
-    // Create and check IP address struct, based on "man inet_pton" example.
-    unsigned char buffer[sizeof(struct in6_addr)];
+    // Create and check IP address struct with inet_pton.
     int status;
-    char str[INET6_ADDRSTRLEN];
+    char str_buffer[INET6_ADDRSTRLEN];
 
-    status = inet_pton(_ip_version, option_arg.c_str(), buffer);
+    status = inet_pton(domain, option_arg.c_str(), &socket_hint.v4.sin_addr);
     if (status <= 0)
     {
-        status = inet_pton(_ip_version = AF_INET6, option_arg.c_str(), buffer);
+        status = inet_pton(domain = AF_INET6, option_arg.c_str(), &socket_hint.v6.sin6_addr);
         if (status <= 0)
-            throw std::invalid_argument("inet_pton: Bad IP address format: " + option_arg);
-        
-        memcpy(&_address, buffer, sizeof(struct in6_addr));
+            throw std::invalid_argument("inet_pton: Bad IP address format: " + option_arg);        
     }
-    else memcpy(&_address, buffer, sizeof(struct in_addr));
-
-    if (inet_ntop(_ip_version, buffer, str, INET6_ADDRSTRLEN) == NULL) {
-        throw std::invalid_argument("inet_ntop: Bad IP address format: " + option_arg);
+    // Based on result AF, fill information for the socket hint structure.
+    switch (domain)
+    {
+    case AF_INET:
+        socket_hint.v4.sin_family = AF_INET;
+        socket_hint.v4.sin_port = htons(port);
+        inet_ntop(domain, &socket_hint.v4.sin_addr, str_buffer, INET_ADDRSTRLEN);
+        break;
+    case AF_INET6:
+        socket_hint.v6.sin6_family = AF_INET6;
+        socket_hint.v6.sin6_port = htons(port);
+        inet_ntop(domain, &socket_hint.v6.sin6_addr, str_buffer, INET6_ADDRSTRLEN);
+        break;
     }
-    _addr_str = str;
+    addr_str = str_buffer;
     address_flag = true;
 }
-
-bool ArgumentParser::get_read_mode()               { return _read_mode; }
-
-bool ArgumentParser::get_write_mode()              { return _write_mode; }
-
-std::string ArgumentParser::get_destination_path() { return _destination_path; }
-
-int ArgumentParser::get_timeout()                  { return _timeout; }
-
-int ArgumentParser::get_size()                     { return _size; }
-
-bool ArgumentParser::get_multicast()               { return _multicast; }
-
-std::string ArgumentParser::get_transfer_mode()    { return _transfer_mode; }
-
-AddressHolder ArgumentParser::get_address()        { return _address; }
-
-int ArgumentParser::get_address_version()          { return _ip_version; }
-
-int ArgumentParser::get_port()                     { return _port; }
-
-std::string ArgumentParser::get_address_string()   { return _addr_str; }
