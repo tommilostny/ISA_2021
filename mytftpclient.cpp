@@ -4,7 +4,6 @@
  */
 #include <algorithm>
 #include <iostream>
-#include <sys/socket.h>
 #include "argumentparser.hpp"
 #include "tftp.hpp"
 
@@ -14,7 +13,7 @@ int main()
     while (!std::cin.eof())
     {
         ArgumentParser* argParser;
-        std::string args = "";
+        std::string args;
 
         std::cout << "> ";
         std::getline(std::cin, args);
@@ -46,15 +45,23 @@ int main()
         std::cout << "Domain:\t"      << (argParser->Domain == AF_INET ? "AF_INET" : "AF_INET6") << std::endl;
         #endif
 
-        auto tftp = new Tftp(argParser);
-        try
+        Tftp* tftp;
+        try //Arguments are loaded correctly, create a new TFTP object and perform transfer.
         {
+            tftp = new Tftp(argParser);
             tftp->Transfer();
         }
-        catch(const std::exception& exc)
+        catch (const std::invalid_argument& exc) //Invalid filename in read mode.
+        {
+            std::cerr << exc.what() << std::endl;
+            delete argParser;
+            continue;
+        }
+        catch (const std::runtime_error& exc) //Transfer error.
         {
             std::cerr << exc.what() << std::endl;
         }
+        //Free resources before next iteration and prompt.
         delete tftp;
         delete argParser;        
     }

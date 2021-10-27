@@ -3,7 +3,6 @@
  * @author Tomáš Milostný (xmilos02)
  */
 #pragma once
-
 #include "argumentparser.hpp"
 
 /**
@@ -12,13 +11,15 @@
 class Tftp
 {
     public:
+        /**
+         * @exception std::invalid_argument
+         */
         Tftp(ArgumentParser* args);
         ~Tftp();
 
         /**
          * @brief Start communication with the TFTP server and perform request.
          * @exception std::runtime_error
-         * @exception std::invalid_argument
          * @returns Communication result (true => ok, false => failed).
          */
         bool Transfer();

@@ -3,7 +3,6 @@
  * @author Tomáš Milostný (xmilos02)
  */
 #pragma once
-
 #include <arpa/inet.h>
 #include <string>
 

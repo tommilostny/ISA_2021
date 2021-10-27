@@ -11,8 +11,16 @@
 Tftp::Tftp(ArgumentParser* args)
 {
     Args = args;
-    Source = fopen(args->DestinationPath.c_str(), args->ReadMode ? "r" : "w");
     ClientSocket = -1;
+
+    std::string filemode = args->ReadMode ? "r" : "w";
+    if (args->TransferMode == "octet")
+        filemode += "b";
+
+    if ((Source = fopen(args->DestinationPath.c_str(), filemode.c_str())) == NULL)
+    {
+        throw std::invalid_argument("Unable to open file " + args->DestinationPath + ".");
+    }
 }
 
 Tftp::~Tftp()
@@ -35,7 +43,7 @@ bool Tftp::Transfer()
                                 Args->Domain == AF_INET ? sizeof(sockaddr_in) : sizeof(sockaddr_in6));
     if (connectResult == -1)
     {
-        throw std::invalid_argument("Could not connect to " + Args->AddressStr + " on port " + std::to_string(Args->Port) + ".");
+        throw std::runtime_error("Could not connect to " + Args->AddressStr + " on port " + std::to_string(Args->Port) + ".");
     }
     //TODO: send, recv with the server
     std::cout << "Transfering " << Args->DestinationPath << "..." << std::endl;
