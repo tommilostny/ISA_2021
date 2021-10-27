@@ -57,7 +57,7 @@ int main()
                                     argParser->Domain == AF_INET ? sizeof(sockaddr_in) : sizeof(sockaddr_in6));
         if (connectResult == -1)
         {
-            std::cerr << "Could not connect to " << argParser->AddressStr << "." << std::endl;
+            std::cerr << "Could not connect to " << argParser->AddressStr << " on port " << argParser->Port << "." << std::endl;
             continue;
         }
         //TODO: send, recv with the server
