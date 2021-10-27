@@ -3,7 +3,7 @@
 
 CC = g++
 CXXFLAGS = -std=c++17 -pedantic -Wall -Wextra
-OBJS = mytftpclient.o argumentparser.o
+OBJS = mytftpclient.o argumentparser.o tftp.o
 
 # Set default build mode.
 default: debug

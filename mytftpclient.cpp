@@ -5,8 +5,8 @@
 #include <algorithm>
 #include <iostream>
 #include <sys/socket.h>
-#include <unistd.h>
 #include "argumentparser.hpp"
+#include "tftp.hpp"
 
 int main()
 {
@@ -46,25 +46,17 @@ int main()
         std::cout << "Domain:\t"      << (argParser->Domain == AF_INET ? "AF_INET" : "AF_INET6") << std::endl;
         #endif
 
-        int tftpClientSocket = socket(argParser->Domain, SOCK_DGRAM, 0);
-        if (tftpClientSocket == -1)
+        auto tftp = new Tftp(argParser);
+        try
         {
-            std::cerr << "Could not create socket." << std::endl;
-            return 1;
+            tftp->Transfer();
         }
-        int connectResult = connect(tftpClientSocket,
-                                    (sockaddr*)&argParser->SocketHint,
-                                    argParser->Domain == AF_INET ? sizeof(sockaddr_in) : sizeof(sockaddr_in6));
-        if (connectResult == -1)
+        catch(const std::exception& exc)
         {
-            std::cerr << "Could not connect to " << argParser->AddressStr << " on port " << argParser->Port << "." << std::endl;
-            continue;
+            std::cerr << exc.what() << std::endl;
         }
-        //TODO: send, recv with the server
-
-        // Close socket and free the memory used by argument parser before the next prompt.
-        close(tftpClientSocket);
-        delete argParser;
+        delete tftp;
+        delete argParser;        
     }
     return 0;
 }
