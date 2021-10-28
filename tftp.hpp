@@ -35,28 +35,24 @@ class Tftp
         };
 
         /**
-         * @brief Creates a RRQ/WRQ request packet based on Destination and Read/Write mode attrributes from args parameter.
-         * @returns Array with packet data ready to be sent via a socket.
+         * @brief Creates and sends a RRQ/WRQ request packet based on Destination and Read/Write mode attrributes from args parameter.
          */
-        uint8_t* RequestPacket();
+        void RequestPacket();
 
         /**
          * @brief Creates a data packet with n bytes from data.
          * @param n Count of bytes of data to be sent.
          * @param data Pointer to start of data array.
-         * @returns Array with packet data ready to be sent via a socket. 
          */
-        uint8_t* DataPacket(size_t n, void* data);
+        void DataPacket(size_t n, void* data);
 
         /**
-         * @brief Creates an ACK packet.
-         * @returns Array with packet data ready to be sent via a socket.
+         * @brief Creates and sends an ACK packet.
          */
-        uint8_t* AcknowledgmentPacket();
+        void AcknowledgmentPacket();
 
         /**
-         * @brief Creates an error packet with entered message.
-         * @returns Array with packet data ready to be sent via a socket.
+         * @brief Creates and sends an error packet with given message.
          */
-        uint8_t* ErrorPacket(std::string errorMessage);
+        void ErrorPacket(std::string errorMessage);
 };

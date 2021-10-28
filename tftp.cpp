@@ -50,22 +50,26 @@ bool Tftp::Transfer()
     return true;
 }
 
-uint8_t* Tftp::RequestPacket()
+//PREREQUISITE: Socket is created
+//Create bytes and send them
+//Return on response?
+
+void Tftp::RequestPacket()
 {
-    return NULL;
+    
 }
 
-uint8_t* Tftp::DataPacket(size_t n, void* data)
+void Tftp::DataPacket(size_t n, void* data)
 {
-    return NULL;
+    
 }
 
-uint8_t* Tftp::AcknowledgmentPacket()
+void Tftp::AcknowledgmentPacket()
 {
-    return NULL;
+    
 }
 
-uint8_t* Tftp::ErrorPacket(std::string errorMessage)
+void Tftp::ErrorPacket(std::string errorMessage)
 {
-    return NULL;
+    
 }

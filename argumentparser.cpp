@@ -43,11 +43,9 @@ void _ArgsForGetopt(std::string args, int& argc, char**& argv)
             argsVect.push_back(argArray);
             argc++;
         }
-        if (spacePos == -1) // No more whitespaces found (end of string), make it empty.
-        {
-            args = "";
+        if (spacePos == -1) // No more whitespaces found (end of string).
             break;
-        }
+
         // Erase matched option from the string before loading another.
         args.erase(0, spacePos);
     }
