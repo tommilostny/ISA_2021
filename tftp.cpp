@@ -11,12 +11,17 @@
 #include <iostream>
 #endif
 
+const char* blksizeReqOptStr = "blksize";
+const char* timeoutReqOptStr = "timeout";
+const char* tsizeReqOptStr = "tsize";
+//conts std::string multicastReqOptStr = "multicast";
+
 Tftp::Tftp(ArgumentParser* args)
 {
     Args = args;
     ClientSocket = -1;
 
-    std::string filemode = args->ReadMode ? "r" : "w";
+    std::string filemode = args->ReadMode ? "w" : "r";
     if (args->TransferMode == "octet")
         filemode += "b";
 
@@ -55,14 +60,32 @@ bool Tftp::Transfer()
     #endif
 
     RequestPacket();
+    if (Args->ReadMode)
+    {
 
-    
+    }
+    else if (Args->WriteMode)
+    {
+
+    }
     return true;
 }
 
 //PREREQUISITE: Socket is created (called only from Transfer method, ok :) )
 //Create bytes and send them
 //Return on response?
+
+std::string _GetTransferSize(FILE* file, bool isWriteMode)
+{
+    if (isWriteMode)
+    {
+        fseek(file, 0, SEEK_END);
+        auto fSizeAsString = std::to_string(ftell(file));
+        rewind(file);
+        return fSizeAsString;
+    }
+    return "0";
+}
 
 void _CopyOpcodeToPacket(char* packetPtr, uint16_t opcode)
 {
@@ -74,22 +97,57 @@ void Tftp::RequestPacket()
     /*
     2 bytes     string     1 byte     string   1 byte
     --------------------------------------------------
-    | Opcode |  Filename  |   0  |    Mode    |   0  |
+    | Opcode |  Filename  |   0  |    Mode    |   0  | + NULL teminated options/values
     --------------------------------------------------
                 Figure 5-1: RRQ/WRQ packet
     */
-    auto packetSize = Args->DestinationPath.size() + Args->TransferMode.size() + 4;
+    auto tsizeValStr = _GetTransferSize(Source, Args->WriteMode);
+    auto timeoutValStr = std::to_string(Args->Timeout);
+    auto blksizeValStr = std::to_string(Args->Size);
+    
+    int tsizeOptSize = strlen(tsizeReqOptStr) + tsizeValStr.size() + 2;
+    int timeoutOptSize = (Args->Timeout != 0) * (strlen(timeoutReqOptStr) + timeoutValStr.size() + 2);
+    int blksizeOptSize = (Args->Size != 512) * (strlen(blksizeReqOptStr) + blksizeValStr.size() + 2);
+    //int multicastOptSize = (int)Args->Multicast * (multicastReqOptStr.size() + 1);
+    
+    auto packetSize = 4 + Args->DestinationPath.size() + Args->TransferMode.size()
+                        + tsizeOptSize + timeoutOptSize + blksizeOptSize/* + multicastOptSize*/;
     auto packetPtr = (char*)calloc(packetSize, sizeof(char));
+    auto currentPtr = packetPtr;
 
     _CopyOpcodeToPacket(packetPtr, Args->ReadMode ? 1U : 2U);
-    strcpy(packetPtr + 2, Args->DestinationPath.c_str());
-    strcpy(packetPtr + 3 + Args->DestinationPath.size(), Args->TransferMode.c_str());
+    currentPtr += 2;
+    
+    strcpy(currentPtr, Args->DestinationPath.c_str());
+    currentPtr += 1 + Args->DestinationPath.size();
 
+    strcpy(currentPtr, Args->TransferMode.c_str());
+    currentPtr += 1 + Args->TransferMode.size();
+
+    strcpy(currentPtr, tsizeReqOptStr);
+    currentPtr += 1 + strlen(tsizeReqOptStr);
+    strcpy(currentPtr, tsizeValStr.c_str());
+    currentPtr += 1 + tsizeValStr.size();
+
+    if (timeoutOptSize)
+    {
+        strcpy(currentPtr, timeoutReqOptStr);
+        currentPtr += 1 + strlen(timeoutReqOptStr);
+        strcpy(currentPtr, timeoutValStr.c_str());
+        currentPtr += 1 + timeoutValStr.size();
+    }
+    if (blksizeOptSize)
+    {
+        strcpy(currentPtr, blksizeReqOptStr);
+        currentPtr += 1 + strlen(blksizeReqOptStr);
+        strcpy(currentPtr, blksizeValStr.c_str());
+        //TODO befotr multicast option: currentPtr += 1 + blksizeValStr.size();
+    }
     #ifdef DEBUG
     for (size_t i = 0; i < packetSize; i++)
     {
         if (i < 2 || packetPtr[i] == 0)
-            printf("%d\n", packetPtr[i]);
+            printf("(%d)\n", packetPtr[i]);
         else
             printf("%c", packetPtr[i]);
     }

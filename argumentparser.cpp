@@ -164,7 +164,7 @@ void ArgumentParser::ParseTimeout(bool& timeoutFlag, std::string optionArg)
     try
     {
         Timeout = std::stoi(optionArg);
-        if (Timeout <= 0)
+        if (Timeout < 1 || Timeout > 255)
             throw std::exception();
     }
     catch (const std::exception&)
@@ -181,7 +181,7 @@ void ArgumentParser::ParseSize(bool& sizeFlag, std::string optionArg)
     try
     {
         Size = std::stoi(optionArg);
-        if (Size < 0)
+        if (Size < 8 || Size > 65464)
             throw std::exception();
     }
     catch (const std::exception&)
