@@ -48,11 +48,7 @@ class Tftp
 
         /**
          * @brief Creates and sends an ACK packet.
+         * @param blockN Block number read from server.
          */
-        void AcknowledgmentPacket();
-
-        /**
-         * @brief Creates and sends an error packet with given message.
-         */
-        void ErrorPacket(std::string errorMessage);
+        void AcknowledgmentPacket(uint16_t blockN);
 };

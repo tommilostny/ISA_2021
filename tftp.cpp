@@ -7,7 +7,9 @@
 #include <string.h>
 #include "tftp.hpp"
 
-#include <iostream> //TODO: remove :D
+#ifdef DEBUG
+#include <iostream>
+#endif
 
 Tftp::Tftp(ArgumentParser* args)
 {
@@ -47,9 +49,13 @@ bool Tftp::Transfer()
         throw std::runtime_error("Could not connect to " + Args->AddressStr + " on port " + std::to_string(Args->Port) + ".");
     }
     //TODO: send, recv with the server
+
+    #ifdef DEBUG
     std::cout << "Transfering " << Args->DestinationPath << "..." << std::endl;
+    #endif
 
     RequestPacket();
+
     
     return true;
 }
@@ -88,20 +94,47 @@ void Tftp::RequestPacket()
             printf("%c", packetPtr[i]);
     }
     #endif
+
+    //TODO: send via socket
+
     free(packetPtr);
 }
 
 void Tftp::DataPacket(size_t n, void* data)
 {
-    
+    /*
+    2 bytes     2 bytes      n bytes
+    ------------------------------------
+    | Opcode |   Block #  |   Data     |
+    ------------------------------------
+        Figure 5-2: DATA packet
+    */
+    static uint16_t blockN = 0U;
+    auto packetSize = n + 4;
+    auto packetPtr = (char*)calloc(packetSize, sizeof(char));
+
+    _CopyOpcodeToPacket(packetPtr, 3U);
+    blockN++;
+    memcpy(packetPtr + 2, &blockN, sizeof(uint16_t));
+    memcpy(packetPtr + 4, data, n);
+
+    //TODO: send via socket
+
+    free(packetPtr);
 }
 
-void Tftp::AcknowledgmentPacket()
+void Tftp::AcknowledgmentPacket(uint16_t blockN)
 {
-    
-}
+    /*
+    2 bytes     2 bytes
+    -----------------------
+    | Opcode |   Block #  |
+    -----------------------
+    Figure 5-3: ACK packet
+    */
+   char packetPtr[4];
+   _CopyOpcodeToPacket(packetPtr, 4U);
+   memcpy(packetPtr + 2, &blockN, sizeof(uint16_t));
 
-void Tftp::ErrorPacket(std::string errorMessage)
-{
-    
+   //TODO: send via socket
 }
