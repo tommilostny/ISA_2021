@@ -4,6 +4,7 @@
  */
 #include <unistd.h>
 #include <stdexcept>
+#include <string.h>
 #include "tftp.hpp"
 
 #include <iostream> //TODO: remove :D
@@ -47,16 +48,47 @@ bool Tftp::Transfer()
     }
     //TODO: send, recv with the server
     std::cout << "Transfering " << Args->DestinationPath << "..." << std::endl;
+
+    RequestPacket();
+    
     return true;
 }
 
-//PREREQUISITE: Socket is created
+//PREREQUISITE: Socket is created (called only from Transfer method, ok :) )
 //Create bytes and send them
 //Return on response?
 
+void _CopyOpcodeToPacket(char* packetPtr, uint16_t opcode)
+{
+    memcpy(packetPtr, &opcode, sizeof(uint16_t));
+}
+
 void Tftp::RequestPacket()
 {
-    
+    /*
+    2 bytes     string     1 byte     string   1 byte
+    --------------------------------------------------
+    | Opcode |  Filename  |   0  |    Mode    |   0  |
+    --------------------------------------------------
+                Figure 5-1: RRQ/WRQ packet
+    */
+    auto packetSize = Args->DestinationPath.size() + Args->TransferMode.size() + 4;
+    auto packetPtr = (char*)calloc(packetSize, sizeof(char));
+
+    _CopyOpcodeToPacket(packetPtr, Args->ReadMode ? 1U : 2U);
+    strcpy(packetPtr + 2, Args->DestinationPath.c_str());
+    strcpy(packetPtr + 3 + Args->DestinationPath.size(), Args->TransferMode.c_str());
+
+    #ifdef DEBUG
+    for (size_t i = 0; i < packetSize; i++)
+    {
+        if (i < 2 || packetPtr[i] == 0)
+            printf("%d\n", packetPtr[i]);
+        else
+            printf("%c", packetPtr[i]);
+    }
+    #endif
+    free(packetPtr);
 }
 
 void Tftp::DataPacket(size_t n, void* data)
