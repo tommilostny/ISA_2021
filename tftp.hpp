@@ -47,7 +47,7 @@ class Tftp
          * @param n Count of bytes of data to be sent.
          * @param data Pointer to start of data array.
          */
-        void DataPacket(size_t n, void* data);
+        void DataPacket(char* data);
 
         /**
          * @brief Creates and sends an ACK packet.
