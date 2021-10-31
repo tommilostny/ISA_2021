@@ -5,6 +5,12 @@
 #pragma once
 #include "argumentparser.hpp"
 
+#define OPCODE_RRQ      1U
+#define OPCODE_WRQ      2U
+#define OPCODE_DATA     3U
+#define OPCODE_ACK      4U
+#define OPCODE_ERROR    5U
+
 /**
  * @brief Class for TFTP communication controlled by ArgumentParser attributes.
  */
@@ -29,11 +35,6 @@ class Tftp
         FILE* Source;         //Open destination file.
         int ClientSocket;     //Socket file descriptor used for communication.
         socklen_t SocketLength;
-
-        enum class Opcodes
-        {
-            RRQ = 1, WRQ = 2, DATA = 3, ACK = 4, ERROR = 5
-        };
 
         /**
          * @brief Creates and sends a RRQ/WRQ request packet based on Destination and Read/Write mode attrributes from args parameter.
