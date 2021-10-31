@@ -71,7 +71,8 @@ ArgumentParser::ArgumentParser(std::string args)
     ReadMode = WriteMode = Multicast = false;
     Timeout = 0;
     Size = 512;
-    AddressStr = "127.0.0.1";
+    //AddressStr = "127.0.0.1";
+    AddressStr = "192.168.1.203";
     Domain = AF_INET;
     Port = 69;
     TransferMode = "octet";

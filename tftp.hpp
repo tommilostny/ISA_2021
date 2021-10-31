@@ -22,12 +22,13 @@ class Tftp
          * @exception std::runtime_error
          * @returns Communication result (true => ok, false => failed).
          */
-        bool Transfer();
+        void Transfer();
 
     private:
         ArgumentParser* Args; //Argument parser object holding required information.
         FILE* Source;         //Open destination file.
         int ClientSocket;     //Socket file descriptor used for communication.
+        socklen_t SocketLength;
 
         enum class Opcodes
         {
@@ -36,8 +37,9 @@ class Tftp
 
         /**
          * @brief Creates and sends a RRQ/WRQ request packet based on Destination and Read/Write mode attrributes from args parameter.
+         * @returns tsize option (returned from server for Read request), aka total count of data bytes. -1 on error.
          */
-        void RequestPacket();
+        int RequestPacket();
 
         /**
          * @brief Creates a data packet with n bytes from data.
@@ -51,4 +53,6 @@ class Tftp
          * @param blockN Block number read from server.
          */
         void AcknowledgmentPacket(uint16_t blockN);
+
+        void ErrorPacket(uint16_t errorCode, std::string message);
 };

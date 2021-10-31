@@ -11,6 +11,9 @@
 #include <iostream>
 #endif
 
+#define SEND(buffer, size)      sendto(ClientSocket, buffer, size, 0, (sockaddr*)&Args->SocketHint, SocketLength)
+#define RECEIVE(buffer, size)   recvfrom(ClientSocket, buffer, size, 0, (sockaddr*)&Args->SocketHint, &SocketLength);
+
 const char* blksizeReqOptStr = "blksize";
 const char* timeoutReqOptStr = "timeout";
 const char* tsizeReqOptStr = "tsize";
@@ -40,40 +43,30 @@ Tftp::~Tftp()
         close(ClientSocket);
 }
 
-bool Tftp::Transfer()
+void Tftp::Transfer()
 {
     if ((ClientSocket = socket(Args->Domain, SOCK_DGRAM, 0)) == -1)
     {
         throw std::runtime_error("Could not create socket.");
     }
-    int connectResult = connect(ClientSocket,
-                                (sockaddr*)&Args->SocketHint,
-                                Args->Domain == AF_INET ? sizeof(sockaddr_in) : sizeof(sockaddr_in6));
-    if (connectResult == -1)
-    {
-        throw std::runtime_error("Could not connect to " + Args->AddressStr + " on port " + std::to_string(Args->Port) + ".");
-    }
-    //TODO: send, recv with the server
+    SocketLength = Args->Domain == AF_INET ? sizeof(sockaddr_in) : sizeof(sockaddr_in6);
 
     #ifdef DEBUG
     std::cout << "Transfering " << Args->DestinationPath << "..." << std::endl;
     #endif
 
     RequestPacket();
+
     if (Args->ReadMode)
     {
 
+        return;
     }
-    else if (Args->WriteMode)
+    if (Args->WriteMode)
     {
 
     }
-    return true;
 }
-
-//PREREQUISITE: Socket is created (called only from Transfer method, ok :) )
-//Create bytes and send them
-//Return on response?
 
 std::string _GetTransferSize(FILE* file, bool isWriteMode)
 {
@@ -89,10 +82,11 @@ std::string _GetTransferSize(FILE* file, bool isWriteMode)
 
 void _CopyOpcodeToPacket(char* packetPtr, uint16_t opcode)
 {
+    opcode = htons(opcode);
     memcpy(packetPtr, &opcode, sizeof(uint16_t));
 }
 
-void Tftp::RequestPacket()
+int Tftp::RequestPacket()
 {
     /*
     2 bytes     string     1 byte     string   1 byte
@@ -109,9 +103,10 @@ void Tftp::RequestPacket()
     int timeoutOptSize = (Args->Timeout != 0) * (strlen(timeoutReqOptStr) + timeoutValStr.size() + 2);
     int blksizeOptSize = (Args->Size != 512) * (strlen(blksizeReqOptStr) + blksizeValStr.size() + 2);
     //int multicastOptSize = (int)Args->Multicast * (multicastReqOptStr.size() + 1);
+
+    int optionsSize = tsizeOptSize + timeoutOptSize + blksizeOptSize/* + multicastOptSize*/;
     
-    auto packetSize = 4 + Args->DestinationPath.size() + Args->TransferMode.size()
-                        + tsizeOptSize + timeoutOptSize + blksizeOptSize/* + multicastOptSize*/;
+    auto packetSize = 4 + Args->DestinationPath.size() + Args->TransferMode.size() + optionsSize;
     auto packetPtr = (char*)calloc(packetSize, sizeof(char));
     auto currentPtr = packetPtr;
 
@@ -151,11 +146,44 @@ void Tftp::RequestPacket()
         else
             printf("%c", packetPtr[i]);
     }
+    std::cout << "Sending request" << std::endl;
     #endif
 
-    //TODO: send via socket
+    SEND(packetPtr, packetSize);
 
+    #ifdef DEBUG
+    std::cout << "Receiving request answer." << std::endl;
+    #endif
+
+    auto responseBuffer = (char*)calloc(2 + optionsSize, sizeof(char));
+    auto received = RECEIVE(responseBuffer, 2 + optionsSize);
+    std::string responseTsize = "0";
+    if (received != -1)
+    {
+        responseTsize = responseBuffer + 3 + strlen(tsizeReqOptStr);
+        #ifdef DEBUG
+        std::cout << "TSIZE: " << responseTsize << std::endl;
+
+        for (int i = 0; i < received; i++)
+        {
+            if (i < 2 || responseBuffer[i] == 0)
+                printf("(%d)\n", responseBuffer[i]);
+            else
+                printf("%c", responseBuffer[i]);
+        }
+        #endif
+    }
+    //else
+    //{
+        #ifdef DEBUG
+        std::cout << "Teminanting." << std::endl;
+        #endif
+        ErrorPacket(8, "testing");
+        //return -1;
+    //}
+    free(responseBuffer);
     free(packetPtr);
+    return std::stoi(responseTsize);
 }
 
 void Tftp::DataPacket(size_t n, void* data)
@@ -195,4 +223,24 @@ void Tftp::AcknowledgmentPacket(uint16_t blockN)
    memcpy(packetPtr + 2, &blockN, sizeof(uint16_t));
 
    //TODO: send via socket
+}
+
+void Tftp::ErrorPacket(uint16_t errorCode, std::string message)
+{
+    /*
+    2 bytes     2 bytes      string    1 byte
+    -------------------------------------------
+    | Opcode |  ErrorCode |   ErrMsg   |   0  |
+    -------------------------------------------
+            Figure 5-4: ERROR packet
+    */
+    auto packetSize = 5 + message.size();
+    auto packetPtr = (char*)calloc(packetSize, sizeof(char));
+
+    _CopyOpcodeToPacket(packetPtr, 5U);
+    memcpy(packetPtr + 2, &errorCode, sizeof(uint16_t));
+    strcpy(packetPtr + 4, message.c_str());
+
+    SEND(packetPtr, packetSize);
+    free(packetPtr);
 }
