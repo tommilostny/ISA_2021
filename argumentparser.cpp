@@ -71,8 +71,8 @@ ArgumentParser::ArgumentParser(std::string args)
     ReadMode = WriteMode = Multicast = false;
     Timeout = 0;
     Size = 512;
-    //AddressStr = "127.0.0.1";
-    AddressStr = "192.168.1.203";
+    AddressStr = "127.0.0.1";
+    //AddressStr = "192.168.1.203";
     Domain = AF_INET;
     Port = 69;
     TransferMode = "octet";
@@ -126,9 +126,9 @@ ArgumentParser::ArgumentParser(std::string args)
     }
     if (!addrFlag) // Argument -a was not set, create a struct from default (localhost).
     {
-        SocketHint.v4.sin_family = AF_INET;
-        SocketHint.v4.sin_port = htons(Port);
-        inet_pton(Domain, AddressStr.c_str(), &SocketHint.v4.sin_addr);
+        ServerAddress.v4.sin_family = AF_INET;
+        ServerAddress.v4.sin_port = htons(Port);
+        inet_pton(Domain, AddressStr.c_str(), &ServerAddress.v4.sin_addr);
     }
     _FreeArgv(argc, argv);
 }
@@ -249,10 +249,10 @@ void ArgumentParser::ParseAddress(bool& addressFlag, std::string optionArg)
     int status;
     char strBuffer[INET6_ADDRSTRLEN];
 
-    status = inet_pton(Domain, optionArg.c_str(), &SocketHint.v4.sin_addr);
+    status = inet_pton(Domain, optionArg.c_str(), &ServerAddress.v4.sin_addr);
     if (status <= 0)
     {
-        status = inet_pton(Domain = AF_INET6, optionArg.c_str(), &SocketHint.v6.sin6_addr);
+        status = inet_pton(Domain = AF_INET6, optionArg.c_str(), &ServerAddress.v6.sin6_addr);
         if (status <= 0)
             throw std::invalid_argument("inet_pton: Bad IP address format: " + optionArg);        
     }
@@ -260,14 +260,14 @@ void ArgumentParser::ParseAddress(bool& addressFlag, std::string optionArg)
     switch (Domain)
     {
     case AF_INET:
-        SocketHint.v4.sin_family = AF_INET;
-        SocketHint.v4.sin_port = htons(Port);
-        inet_ntop(Domain, &SocketHint.v4.sin_addr, strBuffer, INET_ADDRSTRLEN);
+        ServerAddress.v4.sin_family = AF_INET;
+        ServerAddress.v4.sin_port = htons(Port);
+        inet_ntop(Domain, &ServerAddress.v4.sin_addr, strBuffer, INET_ADDRSTRLEN);
         break;
     case AF_INET6:
-        SocketHint.v6.sin6_family = AF_INET6;
-        SocketHint.v6.sin6_port = htons(Port);
-        inet_ntop(Domain, &SocketHint.v6.sin6_addr, strBuffer, INET6_ADDRSTRLEN);
+        ServerAddress.v6.sin6_family = AF_INET6;
+        ServerAddress.v6.sin6_port = htons(Port);
+        inet_ntop(Domain, &ServerAddress.v6.sin6_addr, strBuffer, INET6_ADDRSTRLEN);
         break;
     }
     AddressStr = strBuffer;

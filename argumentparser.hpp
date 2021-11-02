@@ -7,7 +7,7 @@
 #include <string>
 
 /// Holds either IPv4 or IPv6 struct value.
-union SocketHint
+union ServerAddress
 {
     struct sockaddr_in  v4;
     struct sockaddr_in6 v6;
@@ -31,7 +31,7 @@ class ArgumentParser
         int              Size;            // Argument -s, max size of blocks in octets.
         bool             Multicast;       // Argument -m, enables multicast communication.
         std::string      TransferMode;    // Argument -c, mode decoded from "binary"/"octet" and "ascii"/"netascii".
-        union SocketHint SocketHint;      // Parsed hint structure from argument -a, IPv4 or IPv6 address.
+        union ServerAddress ServerAddress;      // Parsed hint structure from argument -a, IPv4 or IPv6 address.
         int              Domain;          // AF_INET or AF_INET6
         int              Port;            // Argument -a after ',' symbol
         std::string      AddressStr;      // Address in string form

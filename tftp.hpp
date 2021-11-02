@@ -40,20 +40,21 @@ class Tftp
          * @brief Creates and sends a RRQ/WRQ request packet based on Destination and Read/Write mode attrributes from args parameter.
          * @returns tsize option (returned from server for Read request), aka total count of data bytes. -1 on error.
          */
-        int RequestPacket();
+        size_t Request();
 
         /**
          * @brief Creates a data packet with n bytes from data.
-         * @param n Count of bytes of data to be sent.
          * @param data Pointer to start of data array.
          */
-        void DataPacket(char* data);
+        bool SendDataBlock(size_t totalFileSize);
+
+        void ReceiveData(size_t totalFileSize);
 
         /**
          * @brief Creates and sends an ACK packet.
          * @param blockN Block number read from server.
          */
-        void AcknowledgmentPacket(uint16_t blockN);
+        void SendAcknowledgment(uint16_t blockN);
 
-        void ErrorPacket(uint16_t errorCode, std::string message);
+        void SendError(uint16_t errorCode, std::string message);
 };

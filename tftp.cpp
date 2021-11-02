@@ -10,13 +10,15 @@
 #include <iostream>
 #endif
 
-#define SEND(buffer, size)      sendto(ClientSocket, buffer, size, 0, (sockaddr*)&Args->SocketHint, SocketLength)
-#define RECEIVE(buffer, size)   recvfrom(ClientSocket, buffer, size, 0, (sockaddr*)&Args->SocketHint, &SocketLength);
+//Tftp class wide socket shortcut macros.
+#define SEND(buffer, size)      sendto(ClientSocket, buffer, size, 0, (sockaddr*)&Args->ServerAddress, SocketLength)
+#define RECEIVE(buffer, size)   recvfrom(ClientSocket, buffer, size, 0, (sockaddr*)&Args->ServerAddress, &SocketLength);
 
+//Request packet option constants.
 const char* blksizeReqOptStr = "blksize";
 const char* timeoutReqOptStr = "timeout";
 const char* tsizeReqOptStr = "tsize";
-//conts std::string multicastReqOptStr = "multicast";
+//const char* multicastReqOptStr = "multicast";
 
 void _PrintPacketDebug(char* buffer, int size)
 {
@@ -64,41 +66,16 @@ void Tftp::Transfer()
     }
     SocketLength = Args->Domain == AF_INET ? sizeof(sockaddr_in) : sizeof(sockaddr_in6);
 
-    #ifdef DEBUG
-    std::cout << "Transfering " << Args->DestinationPath << "..." << std::endl;
-    #endif
-
-    int totalSize = RequestPacket();
+    size_t totalSize = Request(); //Get total file size from server response.
     if (Args->ReadMode)
     {
-        uint16_t n = 0U;
-        int totalReceived = 0;
-        int bufferSize = 4 + Args->Size;
-        auto buffer = (char*)malloc(bufferSize);
-        do
-        {
-            memset(buffer, 0, bufferSize);
-            AcknowledgmentPacket(n++);
-            int received = RECEIVE(buffer, bufferSize);
-            totalReceived += received - 4;
-            fwrite(buffer + 4, sizeof(char), bufferSize, Source);
-        }
-        while (totalReceived < totalSize);
-
-        AcknowledgmentPacket(n);
-        free(buffer);
+        ReceiveData(totalSize);
         return;
     }
     if (Args->WriteMode)
     {
-        auto data = (char*)malloc(Args->Size);
-        for (int i = 0; i < totalSize; i += Args->Size)
-        {
-            memset(data, 0, Args->Size);
-            fread(data, sizeof(char), Args->Size, Source);
-            DataPacket(data);
-        }
-        free(data);
+        //Send data packets to the server while the whole file is not read.
+        while (SendDataBlock(totalSize));
     }
 }
 
@@ -120,7 +97,7 @@ void _CopyOpcodeToPacket(char* packetPtr, uint16_t opcode)
     memcpy(packetPtr, &opcode, sizeof(uint16_t));
 }
 
-int Tftp::RequestPacket()
+size_t Tftp::Request()
 {
     /*
     2 bytes     string     1 byte     string   1 byte
@@ -177,20 +154,12 @@ int Tftp::RequestPacket()
         //TODO before multicast option: currentPtr += 1 + blksizeValStr.size();
     }
     _PrintPacketDebug(packetPtr, packetSize);
-    #ifdef DEBUG
-    std::cout << "Sending request" << std::endl;
-    #endif
 
     SEND(packetPtr, packetSize);
     free(packetPtr);
 
-    #ifdef DEBUG
-    std::cout << "Receiving request answer." << std::endl;
-    #endif
-
-    auto responseBuffer = (char*)calloc(20 + optionsSize, sizeof(char));
-    auto received = RECEIVE(responseBuffer, 20 + optionsSize);
-
+    auto responseBuffer = (char*)calloc(23 + optionsSize, sizeof(char));
+    auto received = RECEIVE(responseBuffer, 23 + optionsSize);
     if (received == -1)
     {
         free(responseBuffer);
@@ -207,10 +176,10 @@ int Tftp::RequestPacket()
 
     _PrintPacketDebug(responseBuffer, received);
     free(responseBuffer);
-    return std::stoi(responseTsize);
+    return std::stoul(responseTsize);
 }
 
-void Tftp::DataPacket(char* data)
+bool Tftp::SendDataBlock(size_t totalFileSize)
 {
     /*
     2 bytes     2 bytes      n bytes
@@ -219,27 +188,59 @@ void Tftp::DataPacket(char* data)
     ------------------------------------
         Figure 5-2: DATA packet
     */
-    static uint16_t blockN = 0U;
-    auto packetSize = 4 + strlen(data);
+    static uint16_t blockN = 0;
+    //Increment block number, mark total send.
+    blockN++;
+    size_t totalToSend = blockN * Args->Size;
+    bool notTransmissionEnd = totalToSend < totalFileSize;
+
+    //Create packet with dynamic length (smaller for the last chunk of data).
+    auto packetSize = 4 + (notTransmissionEnd ? Args->Size : totalToSend - totalFileSize);
     auto packetPtr = (char*)calloc(packetSize, sizeof(char));
 
+    //Fill in packet header.
     _CopyOpcodeToPacket(packetPtr, OPCODE_DATA);
-    blockN++;
     blockN = htons(blockN);
     memcpy(packetPtr + 2, &blockN, sizeof(uint16_t));
     blockN = ntohs(blockN);
-    memcpy(packetPtr + 4, data, packetSize);
+
+    //Read data from file.
+    fread(packetPtr + 4, sizeof(char), packetSize - 4, Source);
 
     SEND(packetPtr, packetSize);
     free(packetPtr);
 
+    //Check received acknowledgement.
     char ackBuffer[4];
     auto received = RECEIVE(ackBuffer, 4);
     if (received == -1 || ackBuffer[1] != OPCODE_ACK)
+    {
         throw std::runtime_error("Error while transfering data.");
+    }
+    return notTransmissionEnd;
 }
 
-void Tftp::AcknowledgmentPacket(uint16_t blockN)
+void Tftp::ReceiveData(size_t totalFileSize)
+{
+    uint16_t n = 0;
+    size_t totalReceived = 0;
+    size_t bufferSize = 4 + Args->Size;
+    auto buffer = (char*)malloc(bufferSize);
+    do
+    {
+        SendAcknowledgment(n++);
+        memset(buffer, 0, bufferSize);
+        int received = RECEIVE(buffer, bufferSize);
+        totalReceived += received - 4;
+        fwrite(buffer + 4, sizeof(char), bufferSize - 4, Source);
+    }
+    while (totalReceived < totalFileSize);
+
+    SendAcknowledgment(n);
+    free(buffer);
+}
+
+void Tftp::SendAcknowledgment(uint16_t blockN)
 {
     /*
     2 bytes     2 bytes
@@ -252,11 +253,10 @@ void Tftp::AcknowledgmentPacket(uint16_t blockN)
     _CopyOpcodeToPacket(packetPtr, OPCODE_ACK);
     blockN = htons(blockN);
     memcpy(packetPtr + 2, &blockN, sizeof(uint16_t));
-    blockN++;
     SEND(packetPtr, 4);
 }
 
-void Tftp::ErrorPacket(uint16_t errorCode, std::string message)
+void Tftp::SendError(uint16_t errorCode, std::string message)
 {
     /*
     2 bytes     2 bytes      string    1 byte
