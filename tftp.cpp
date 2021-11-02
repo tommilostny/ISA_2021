@@ -158,8 +158,8 @@ size_t Tftp::Request()
     SEND(packetPtr, packetSize);
     free(packetPtr);
 
-    auto responseBuffer = (char*)calloc(23 + optionsSize, sizeof(char));
-    auto received = RECEIVE(responseBuffer, 23 + optionsSize);
+    auto responseBuffer = (char*)calloc(42 + optionsSize, sizeof(char));
+    auto received = RECEIVE(responseBuffer, 42 + optionsSize);
     if (received == -1)
     {
         free(responseBuffer);
@@ -167,7 +167,7 @@ size_t Tftp::Request()
     }
     if (responseBuffer[1] == 5) //opcode 5 => error packet
     {
-        std::string message = "Error from the server: " + std::string(responseBuffer + 3);
+        std::string message = "Error from the server:  " + std::string(responseBuffer + 3);
         free(responseBuffer);
         throw std::runtime_error(message);
     }
@@ -207,7 +207,12 @@ bool Tftp::SendDataBlock(size_t totalFileSize)
     //Read data from file.
     fread(packetPtr + 4, sizeof(char), packetSize - 4, Source);
 
-    SEND(packetPtr, packetSize);
+    int sendResult;
+    do
+    {
+        sendResult = SEND(packetPtr, packetSize);
+    }
+    while (sendResult == -1);
     free(packetPtr);
 
     //Check received acknowledgement.
@@ -231,6 +236,11 @@ void Tftp::ReceiveData(size_t totalFileSize)
         SendAcknowledgment(n++);
         memset(buffer, 0, bufferSize);
         int received = RECEIVE(buffer, bufferSize);
+        if (received == -1)
+        {
+            n--;
+            continue;
+        }
         totalReceived += received - 4;
         fwrite(buffer + 4, sizeof(char), bufferSize - 4, Source);
     }
@@ -253,7 +263,12 @@ void Tftp::SendAcknowledgment(uint16_t blockN)
     _CopyOpcodeToPacket(packetPtr, OPCODE_ACK);
     blockN = htons(blockN);
     memcpy(packetPtr + 2, &blockN, sizeof(uint16_t));
-    SEND(packetPtr, 4);
+    int sendResult;
+    do
+    {
+        sendResult = SEND(packetPtr, 4);
+    }
+    while (sendResult == -1);
 }
 
 void Tftp::SendError(uint16_t errorCode, std::string message)
