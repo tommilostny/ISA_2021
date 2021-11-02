@@ -181,7 +181,7 @@ void ArgumentParser::ParseSize(bool& sizeFlag, std::string optionArg)
         throw std::invalid_argument("Argument -s is already set to '" + std::to_string(Size) + "'.");
     try
     {
-        Size = std::stoi(optionArg);
+        Size = std::stoul(optionArg);
         if (Size < 8 || Size > 65464)
             throw std::exception();
     }

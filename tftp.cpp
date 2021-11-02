@@ -6,9 +6,7 @@
 #include <stdexcept>
 #include <string.h>
 #include "tftp.hpp"
-#ifdef DEBUG
 #include <iostream>
-#endif
 
 //Tftp class wide socket shortcut macros.
 #define SEND(buffer, size)      sendto(ClientSocket, buffer, size, 0, (sockaddr*)&Args->ServerAddress, SocketLength)
@@ -19,20 +17,6 @@ const char* blksizeReqOptStr = "blksize";
 const char* timeoutReqOptStr = "timeout";
 const char* tsizeReqOptStr = "tsize";
 //const char* multicastReqOptStr = "multicast";
-
-void _PrintPacketDebug(char* buffer, int size)
-{
-    #ifdef DEBUG
-    for (int i = 0; i < size; i++)
-    {
-        if (i < 2 || buffer[i] == 0)
-            printf("(%d)\n", buffer[i]);
-        else
-            printf("%c", buffer[i]);
-    }
-    #endif
-    return;
-}
 
 Tftp::Tftp(ArgumentParser* args)
 {
@@ -112,7 +96,7 @@ size_t Tftp::Request()
     auto blksizeValStr = std::to_string(Args->Size);
     
     //Store options sizes for memory allocation and logic if option is in the packet.
-    int tsizeOptSize = strlen(tsizeReqOptStr) + tsizeValStr.size() + 2;
+    int tsizeOptSize = (Args->TransferMode == "octet") * (strlen(tsizeReqOptStr) + tsizeValStr.size() + 2);
     int timeoutOptSize = (Args->Timeout != 0) * (strlen(timeoutReqOptStr) + timeoutValStr.size() + 2);
     int blksizeOptSize = (Args->Size != 512) * (strlen(blksizeReqOptStr) + blksizeValStr.size() + 2);
     //int multicastOptSize = (int)Args->Multicast * (multicastReqOptStr.size() + 1);
@@ -134,11 +118,13 @@ size_t Tftp::Request()
     strcpy(currentPtr, Args->TransferMode.c_str());
     currentPtr += 1 + Args->TransferMode.size();
 
-    strcpy(currentPtr, tsizeReqOptStr);
-    currentPtr += 1 + strlen(tsizeReqOptStr);
-    strcpy(currentPtr, tsizeValStr.c_str());
-    currentPtr += 1 + tsizeValStr.size();
-
+    if (tsizeOptSize)
+    {
+        strcpy(currentPtr, tsizeReqOptStr);
+        currentPtr += 1 + strlen(tsizeReqOptStr);
+        strcpy(currentPtr, tsizeValStr.c_str());
+        currentPtr += 1 + tsizeValStr.size();
+    }
     if (timeoutOptSize)
     {
         strcpy(currentPtr, timeoutReqOptStr);
@@ -153,8 +139,6 @@ size_t Tftp::Request()
         strcpy(currentPtr, blksizeValStr.c_str());
         //TODO before multicast option: currentPtr += 1 + blksizeValStr.size();
     }
-    _PrintPacketDebug(packetPtr, packetSize);
-
     SEND(packetPtr, packetSize);
     free(packetPtr);
 
@@ -171,12 +155,14 @@ size_t Tftp::Request()
         free(responseBuffer);
         throw std::runtime_error(message);
     }
-    //Get tsize option from the response packet (useful for reading from the server).
-    std::string responseTsize = responseBuffer + 3 + strlen(tsizeReqOptStr);
-
-    _PrintPacketDebug(responseBuffer, received);
-    free(responseBuffer);
-    return std::stoul(responseTsize);
+    if (Args->TransferMode == "octet")
+    {
+        //Get tsize option from the response packet (useful for reading from the server).
+        std::string responseTsize = responseBuffer + 3 + strlen(tsizeReqOptStr);
+        free(responseBuffer);
+        return std::stoul(responseTsize);
+    }
+    return 0;
 }
 
 bool Tftp::SendDataBlock(size_t totalFileSize)
@@ -225,6 +211,20 @@ bool Tftp::SendDataBlock(size_t totalFileSize)
     return notTransmissionEnd;
 }
 
+bool _NotTransferEnd(ArgumentParser* args, size_t totalReceived, size_t totalFileSize, char* asciiData)
+{
+    if (args->TransferMode == "octet")
+        return totalReceived < totalFileSize;
+    return strlen(asciiData) == args->Size;
+}
+
+size_t _DataWriteSize(ArgumentParser* args, char* asciiData, size_t bufferSize)
+{
+    if (args->TransferMode == "octet")
+        return bufferSize - 4;
+    return strlen(asciiData);
+}
+
 void Tftp::ReceiveData(size_t totalFileSize)
 {
     uint16_t n = 0;
@@ -242,9 +242,9 @@ void Tftp::ReceiveData(size_t totalFileSize)
             continue;
         }
         totalReceived += received - 4;
-        fwrite(buffer + 4, sizeof(char), bufferSize - 4, Source);
+        fwrite(buffer + 4, sizeof(char), _DataWriteSize(Args, buffer + 4, bufferSize), Source);
     }
-    while (totalReceived < totalFileSize);
+    while (_NotTransferEnd(Args, totalReceived, totalFileSize, buffer + 4));
 
     SendAcknowledgment(n);
     free(buffer);

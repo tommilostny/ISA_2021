@@ -35,4 +35,5 @@
 mytftpclient
 .vscode/
 xmilos02.tar
-rr.txt
+*.txt
+*.jpg

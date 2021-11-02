@@ -28,7 +28,7 @@ class ArgumentParser
         bool             WriteMode;       // Argument -W, write mode (required if -R is not set, otherwise forbidden).
         std::string      DestinationPath; // Argument -d, destination file to (read to)/(write from) (required).
         int              Timeout;         // Argument -t, timeout in seconds.
-        int              Size;            // Argument -s, max size of blocks in octets.
+        size_t           Size;            // Argument -s, max size of blocks in octets.
         bool             Multicast;       // Argument -m, enables multicast communication.
         std::string      TransferMode;    // Argument -c, mode decoded from "binary"/"octet" and "ascii"/"netascii".
         union ServerAddress ServerAddress;      // Parsed hint structure from argument -a, IPv4 or IPv6 address.

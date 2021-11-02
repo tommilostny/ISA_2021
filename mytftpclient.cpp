@@ -28,19 +28,6 @@ ArgumentParser* ParsePromptArgs()
         std::cerr << exc.what() << std::endl;
         return NULL;
     }
-    // Debugging messages.
-    #ifdef DEBUG
-    std::cout << "Read mode:\t"   << argParser->ReadMode        << std::endl;
-    std::cout << "Write mode:\t"  << argParser->WriteMode       << std::endl;
-    std::cout << "Destination:\t" << argParser->DestinationPath << std::endl;
-    std::cout << "Mode:\t\t"      << argParser->TransferMode    << std::endl;
-    std::cout << "Timeout:\t"     << argParser->Timeout         << std::endl;
-    std::cout << "Size:\t\t"      << argParser->Size            << std::endl;
-    std::cout << "Multicast:\t"   << argParser->Multicast       << std::endl;
-    std::cout << "Address:\t"     << argParser->AddressStr      << std::endl;
-    std::cout << "Port:\t\t"      << argParser->Port            << std::endl;
-    std::cout << "Domain:\t"      << (argParser->Domain == AF_INET ? "AF_INET" : "AF_INET6") << std::endl;
-    #endif
     return argParser;
 }
 

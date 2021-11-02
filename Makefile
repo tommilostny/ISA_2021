@@ -2,23 +2,12 @@
 # Author: Tomáš Milostný (xmilos02)
 
 CC = g++
-CXXFLAGS = -std=c++17 -pedantic -Wall -Wextra
+CXXFLAGS = -std=c++17 -pedantic -Wall -Wextra -Werror
 OBJS = mytftpclient.o argumentparser.o tftp.o
-
-# Set default build mode.
-default: debug
 
 # Compile mytftpclient and its dependencies.
 mytftpclient: $(OBJS)
 	$(CC) $(CXXFLAGS) $^ -o $@
-
-# Build mytftpclient with debugging flags.
-debug: CXXFLAGS += -g -DDEBUG
-debug: mytftpclient
-
-# Build mytftpclient for release.
-release: CXXFLAGS += -Werror
-release: mytftpclient
 
 # Delete built files.
 clean:
