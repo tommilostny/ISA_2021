@@ -36,6 +36,9 @@ class Tftp
         int ClientSocket;     //Socket file descriptor used for communication.
         socklen_t SocketLength;
 
+        size_t TotalSentReceived;
+        uint16_t BlockN;
+
         /**
          * @brief Creates and sends a RRQ/WRQ request packet based on Destination and Read/Write mode attrributes from args parameter.
          * @returns tsize option (returned from server for Read request), aka total count of data bytes. -1 on error.

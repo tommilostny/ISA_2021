@@ -4,11 +4,11 @@
  */
 #include <chrono>
 #include <iomanip>
+#include <iostream>
 #include <unistd.h>
 #include <stdexcept>
 #include <string.h>
 #include "tftp.hpp"
-#include <iostream>
 
 //Tftp class wide socket shortcut macros.
 #define SEND(buffer, size)      sendto(ClientSocket, buffer, size, 0, (sockaddr*)&Args->ServerAddress, SocketLength)
@@ -53,6 +53,7 @@ void Tftp::Transfer()
     SocketLength = Args->Domain == AF_INET ? sizeof(sockaddr_in) : sizeof(sockaddr_in6);
 
     size_t totalSize = Request(); //Get total file size from server response.
+    BlockN = 0;
     if (Args->ReadMode)
     {
         ReceiveData(totalSize);
@@ -61,6 +62,7 @@ void Tftp::Transfer()
     if (Args->WriteMode)
     {
         //Send data packets to the server while the whole file is not read.
+        TotalSentReceived = 0;
         while (SendDataBlock(totalSize));
     }
 }
@@ -68,17 +70,14 @@ void Tftp::Transfer()
 void _PrintProgressMessage(std::string message, std::ostream& stream)
 {
     using namespace std::chrono;
-    // get current time
     auto now = system_clock::now();
-    // get number of milliseconds for the current second
-    // (remainder after division into seconds)
+    // Get number of milliseconds for the current second.
     auto ms = duration_cast<milliseconds>(now.time_since_epoch()) % 1000;
-    // convert to std::time_t in order to convert to std::tm (broken time)
+    // Convert to std::time_t in order to convert to std::tm (broken time).
     auto timer = system_clock::to_time_t(now);
-    // convert to broken time
-    std::tm bt = *std::localtime(&timer);
+    auto brokenTime = *std::localtime(&timer);
 
-    stream << "[" << std::put_time(&bt, "%F %H:%M:%S") << '.' << std::setfill('0') << std::setw(3) << ms.count() << "] " << message << std::endl;
+    stream << '[' << std::put_time(&brokenTime, "%F %H:%M:%S") << '.' << std::setfill('0') << std::setw(3) << ms.count() << "] " << message << std::endl;
 }
 
 std::string _GetTransferSize(FILE* file, bool isWriteMode)
@@ -102,8 +101,8 @@ void _CopyOpcodeToPacket(char* packetPtr, uint16_t opcode)
 size_t Tftp::Request()
 {
     std::stringstream ss;
-    ss << "Requesting " << (Args->ReadMode ? "READ" : "WRITE");
-    ss << " from server " << Args->AddressStr << " on port " << Args->Port << ".";
+    ss << "Requesting " << (Args->ReadMode ? "READ from" : "WRITE to");
+    ss << " server " << Args->AddressStr << " on port " << Args->Port << ".";
     _PrintProgressMessage(ss.str(), std::cout);
     /*
     2 bytes     string     1 byte     string   1 byte
@@ -196,30 +195,27 @@ bool Tftp::SendDataBlock(size_t totalFileSize)
     ------------------------------------
         Figure 5-2: DATA packet
     */
-    static uint16_t blockN = 0;
-    static size_t sent = 0;
     //Increment block number, mark total send.
-    blockN++;
-    size_t totalToSend = blockN * Args->Size;
-    bool notTransmissionEnd = totalToSend < totalFileSize;
+    BlockN++;
+    size_t totalToSend = TotalSentReceived + Args->Size <= totalFileSize ? Args->Size : totalFileSize - TotalSentReceived;
 
     //Create packet with dynamic length (smaller for the last chunk of data).
-    auto packetSize = 4 + (notTransmissionEnd ? Args->Size : totalToSend - totalFileSize);
+    auto packetSize = 4 + totalToSend;
     auto packetPtr = (char*)calloc(packetSize, sizeof(char));
 
-    sent += packetSize - 4;
+    TotalSentReceived += totalToSend;
     std::stringstream ss;
-    ss << "Sending DATA ... " << sent << " B of " << totalFileSize << " B.";
+    ss << "Sending DATA #" << BlockN <<" ... " << TotalSentReceived << " B of " << totalFileSize << " B.";
     _PrintProgressMessage(ss.str(), std::cout);
 
     //Fill in packet header.
     _CopyOpcodeToPacket(packetPtr, OPCODE_DATA);
-    blockN = htons(blockN);
-    memcpy(packetPtr + 2, &blockN, sizeof(uint16_t));
-    blockN = ntohs(blockN);
+    BlockN = htons(BlockN);
+    memcpy(packetPtr + 2, &BlockN, sizeof(uint16_t));
+    BlockN = ntohs(BlockN);
 
     //Read data from file and send them.
-    fread(packetPtr + 4, sizeof(char), packetSize - 4, Source);
+    fread(packetPtr + 4, sizeof(char), totalToSend, Source);
     int sendResult;
     do
     {
@@ -235,14 +231,8 @@ bool Tftp::SendDataBlock(size_t totalFileSize)
     {
         throw std::runtime_error("Error while transfering data.");
     }
-    return notTransmissionEnd;
-}
-
-bool _NotTransferEnd(ArgumentParser* args, size_t totalReceived, size_t totalFileSize, char* asciiData)
-{
-    if (args->TransferMode == "octet")
-        return totalReceived < totalFileSize;
-    return strlen(asciiData) == args->Size;
+    //Transmission end condition (sent the whole file?).
+    return TotalSentReceived < totalFileSize;
 }
 
 size_t _DataWriteSize(ArgumentParser* args, char* asciiData, size_t bufferSize)
@@ -254,33 +244,35 @@ size_t _DataWriteSize(ArgumentParser* args, char* asciiData, size_t bufferSize)
 
 void Tftp::ReceiveData(size_t totalFileSize)
 {
-    uint16_t n = 0;
     size_t totalReceived = 0;
     size_t bufferSize = 4 + Args->Size;
     auto buffer = (char*)malloc(bufferSize);
+    int received;
     do
     {
-        std::stringstream ss;
-        SendAcknowledgment(n++);
+        SendAcknowledgment(BlockN++);
         memset(buffer, 0, bufferSize);
-        int received = RECEIVE(buffer, bufferSize);
+        received = RECEIVE(buffer, bufferSize);
         if (received == -1)
         {
-            ss << "DATA block " << n << " not acknowledged, retrying.";
-            _PrintProgressMessage(ss.str(), std::cerr);
-            n--;
+            BlockN--;
             continue;
         }
         totalReceived += received - 4;
 
-        ss << "Receiving DATA ... " << totalReceived << " B of " << totalFileSize << " B.";
+        std::stringstream ss;
+        ss << "Receiving DATA ... " << totalReceived << " B";
+        if (Args->TransferMode == "octet")
+            ss << " of " << totalFileSize << " B.";
+        else
+            ss << '.';
         _PrintProgressMessage(ss.str(), std::cout);
 
         fwrite(buffer + 4, sizeof(char), _DataWriteSize(Args, buffer + 4, bufferSize), Source);
     }
-    while (_NotTransferEnd(Args, totalReceived, totalFileSize, buffer + 4));
+    while (received == (int)bufferSize);
 
-    SendAcknowledgment(n);
+    SendAcknowledgment(BlockN);
     free(buffer);
 }
 
