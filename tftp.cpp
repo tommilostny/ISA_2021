@@ -2,6 +2,8 @@
  * @brief TFTP class implementation.
  * @author Tomáš Milostný (xmilos02)
  */
+#include <chrono>
+#include <iomanip>
 #include <unistd.h>
 #include <stdexcept>
 #include <string.h>
@@ -63,6 +65,22 @@ void Tftp::Transfer()
     }
 }
 
+void _PrintProgressMessage(std::string message, std::ostream& stream)
+{
+    using namespace std::chrono;
+    // get current time
+    auto now = system_clock::now();
+    // get number of milliseconds for the current second
+    // (remainder after division into seconds)
+    auto ms = duration_cast<milliseconds>(now.time_since_epoch()) % 1000;
+    // convert to std::time_t in order to convert to std::tm (broken time)
+    auto timer = system_clock::to_time_t(now);
+    // convert to broken time
+    std::tm bt = *std::localtime(&timer);
+
+    stream << "[" << std::put_time(&bt, "%F %H:%M:%S") << '.' << std::setfill('0') << std::setw(3) << ms.count() << "] " << message << std::endl;
+}
+
 std::string _GetTransferSize(FILE* file, bool isWriteMode)
 {
     if (isWriteMode)
@@ -83,6 +101,10 @@ void _CopyOpcodeToPacket(char* packetPtr, uint16_t opcode)
 
 size_t Tftp::Request()
 {
+    std::stringstream ss;
+    ss << "Requesting " << (Args->ReadMode ? "READ" : "WRITE");
+    ss << " from server " << Args->AddressStr << " on port " << Args->Port << ".";
+    _PrintProgressMessage(ss.str(), std::cout);
     /*
     2 bytes     string     1 byte     string   1 byte
     --------------------------------------------------
@@ -175,6 +197,7 @@ bool Tftp::SendDataBlock(size_t totalFileSize)
         Figure 5-2: DATA packet
     */
     static uint16_t blockN = 0;
+    static size_t sent = 0;
     //Increment block number, mark total send.
     blockN++;
     size_t totalToSend = blockN * Args->Size;
@@ -184,15 +207,19 @@ bool Tftp::SendDataBlock(size_t totalFileSize)
     auto packetSize = 4 + (notTransmissionEnd ? Args->Size : totalToSend - totalFileSize);
     auto packetPtr = (char*)calloc(packetSize, sizeof(char));
 
+    sent += packetSize - 4;
+    std::stringstream ss;
+    ss << "Sending DATA ... " << sent << " B of " << totalFileSize << " B.";
+    _PrintProgressMessage(ss.str(), std::cout);
+
     //Fill in packet header.
     _CopyOpcodeToPacket(packetPtr, OPCODE_DATA);
     blockN = htons(blockN);
     memcpy(packetPtr + 2, &blockN, sizeof(uint16_t));
     blockN = ntohs(blockN);
 
-    //Read data from file.
+    //Read data from file and send them.
     fread(packetPtr + 4, sizeof(char), packetSize - 4, Source);
-
     int sendResult;
     do
     {
@@ -233,15 +260,22 @@ void Tftp::ReceiveData(size_t totalFileSize)
     auto buffer = (char*)malloc(bufferSize);
     do
     {
+        std::stringstream ss;
         SendAcknowledgment(n++);
         memset(buffer, 0, bufferSize);
         int received = RECEIVE(buffer, bufferSize);
         if (received == -1)
         {
+            ss << "DATA block " << n << " not acknowledged, retrying.";
+            _PrintProgressMessage(ss.str(), std::cerr);
             n--;
             continue;
         }
         totalReceived += received - 4;
+
+        ss << "Receiving DATA ... " << totalReceived << " B of " << totalFileSize << " B.";
+        _PrintProgressMessage(ss.str(), std::cout);
+
         fwrite(buffer + 4, sizeof(char), _DataWriteSize(Args, buffer + 4, bufferSize), Source);
     }
     while (_NotTransferEnd(Args, totalReceived, totalFileSize, buffer + 4));
