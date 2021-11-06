@@ -4,9 +4,9 @@
  */
 #include <algorithm>
 #include <iostream>
-#include "argumentparser.hpp"
-#include "messageprinter.hpp"
-#include "tftp.hpp"
+#include "ArgumentParser.hpp"
+#include "MessagePrinter.hpp"
+#include "Tftp.hpp"
 
 ArgumentParser* ParsePromptArgs()
 {

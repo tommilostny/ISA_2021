@@ -3,7 +3,7 @@
 
 CC = g++
 CXXFLAGS = -std=c++2a -pedantic -Wall -Wextra -Werror
-OBJS = mytftpclient.o argumentparser.o tftp.o messageprinter.o
+OBJS = mytftpclient.o ArgumentParser.o Tftp.o MessagePrinter.o
 
 # Compile mytftpclient and its dependencies.
 mytftpclient: $(OBJS)

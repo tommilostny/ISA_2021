@@ -1,7 +1,7 @@
 #include <chrono>
 #include <iomanip>
 #include <iostream>
-#include "messageprinter.hpp"
+#include "MessagePrinter.hpp"
 
 void MessagePrinter::PrintMessage(std::string message)
 {

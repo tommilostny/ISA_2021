@@ -7,8 +7,8 @@
 #include <unistd.h>
 #include <stdexcept>
 #include <string.h>
-#include "messageprinter.hpp"
-#include "tftp.hpp"
+#include "MessagePrinter.hpp"
+#include "Tftp.hpp"
 
 //Tftp class wide socket shortcut macros.
 #define SEND(buffer, size)      sendto(ClientSocket, buffer, size, 0, (sockaddr*)&Args->ServerAddress, SocketLength)

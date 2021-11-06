@@ -8,7 +8,7 @@
 #include <stdexcept>
 #include <string.h>
 #include <vector>
-#include "argumentparser.hpp"
+#include "ArgumentParser.hpp"
 
 /// Initialize argv and argc from string for getopt function.
 void _ArgsForGetopt(std::string args, int& argc, char**& argv)

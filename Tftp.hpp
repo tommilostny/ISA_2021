@@ -3,7 +3,7 @@
  * @author Tomáš Milostný (xmilos02)
  */
 #pragma once
-#include "argumentparser.hpp"
+#include "ArgumentParser.hpp"
 
 #define OPCODE_RRQ      1U
 #define OPCODE_WRQ      2U
