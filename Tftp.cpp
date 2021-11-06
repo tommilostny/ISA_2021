@@ -250,7 +250,7 @@ void Tftp::ReceiveData(size_t totalFileSize)
         SendAcknowledgment(BlockN++);
         memset(buffer, 0, bufferSize);
         received = RECEIVE(buffer, bufferSize);
-        if (received == -1)
+        if (received == -1 || ntohs(((uint16_t*)buffer)[1]) != BlockN)
         {
             BlockN--;
             continue;
@@ -258,7 +258,7 @@ void Tftp::ReceiveData(size_t totalFileSize)
         totalReceived += received - 4;
 
         std::stringstream ss;
-        ss << "Receiving DATA #" << BlockN << " ... " << totalReceived << " B";
+        ss << "Received DATA #" << BlockN << " ... " << totalReceived << " B";
         if (Args->TransferMode == "octet")
             ss << " of " << totalFileSize << " B.";
         else
