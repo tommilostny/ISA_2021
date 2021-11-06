@@ -3,7 +3,6 @@
  * @author Tomáš Milostný (xmilos02)
  */
 #include <iomanip>
-#include <iostream>
 #include <unistd.h>
 #include <stdexcept>
 #include <string.h>

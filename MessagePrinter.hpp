@@ -1,3 +1,8 @@
+/**
+ * @brief Message printer class module.
+ * @author Tomáš Milostný (xmilos02)
+ */
+#pragma once
 #include <string>
 
 class MessagePrinter

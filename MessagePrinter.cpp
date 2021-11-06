@@ -1,3 +1,7 @@
+/**
+ * @brief Message printer class implementation.
+ * @author Tomáš Milostný (xmilos02)
+ */
 #include <chrono>
 #include <iomanip>
 #include <iostream>
