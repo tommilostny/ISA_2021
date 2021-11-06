@@ -2,12 +2,12 @@
  * @brief TFTP class implementation.
  * @author Tomáš Milostný (xmilos02)
  */
-#include <chrono>
 #include <iomanip>
 #include <iostream>
 #include <unistd.h>
 #include <stdexcept>
 #include <string.h>
+#include "messageprinter.hpp"
 #include "tftp.hpp"
 
 //Tftp class wide socket shortcut macros.
@@ -46,13 +46,24 @@ Tftp::~Tftp()
 
 void Tftp::Transfer()
 {
+    //Create socket.
     if ((ClientSocket = socket(Args->Domain, SOCK_DGRAM, 0)) == -1)
     {
         throw std::runtime_error("Could not create socket.");
     }
     SocketLength = Args->Domain == AF_INET ? sizeof(sockaddr_in) : sizeof(sockaddr_in6);
 
-    size_t totalSize = Request(); //Get total file size from server response.
+    //Set ClientSocket timeout.
+    if (Args->Timeout > 0)
+    {
+        struct timeval tv = { .tv_sec = Args->Timeout, .tv_usec = 0 };
+        if (setsockopt(ClientSocket, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == -1)
+        {
+            throw std::runtime_error("Could not set socket timeout.");
+        }
+    }
+    //Get total file size from server response.
+    size_t totalSize = Request();
     BlockN = 0;
     if (Args->ReadMode)
     {
@@ -65,19 +76,6 @@ void Tftp::Transfer()
         TotalSentReceived = 0;
         while (SendDataBlock(totalSize));
     }
-}
-
-void _PrintProgressMessage(std::string message, std::ostream& stream)
-{
-    using namespace std::chrono;
-    auto now = system_clock::now();
-    // Get number of milliseconds for the current second.
-    auto ms = duration_cast<milliseconds>(now.time_since_epoch()) % 1000;
-    // Convert to std::time_t in order to convert to std::tm (broken time).
-    auto timer = system_clock::to_time_t(now);
-    auto brokenTime = *std::localtime(&timer);
-
-    stream << '[' << std::put_time(&brokenTime, "%F %H:%M:%S") << '.' << std::setfill('0') << std::setw(3) << ms.count() << "] " << message << std::endl;
 }
 
 std::string _GetTransferSize(FILE* file, bool isWriteMode)
@@ -103,7 +101,7 @@ size_t Tftp::Request()
     std::stringstream ss;
     ss << "Requesting " << (Args->ReadMode ? "READ from" : "WRITE to");
     ss << " server " << Args->AddressStr << " on port " << Args->Port << ".";
-    _PrintProgressMessage(ss.str(), std::cout);
+    MessagePrinter::PrintMessage(ss.str());
     /*
     2 bytes     string     1 byte     string   1 byte
     --------------------------------------------------
@@ -168,11 +166,11 @@ size_t Tftp::Request()
     if (received == -1)
     {
         free(responseBuffer);
-        throw std::runtime_error("Error occured while receiving from server.");
+        throw std::runtime_error("Server did not respond.");
     }
     if (responseBuffer[1] == 5) //opcode 5 => error packet
     {
-        std::string message = "Error from the server:  " + std::string(responseBuffer + 3);
+        std::string message = "Error from the server:  " + std::string(responseBuffer + 4);
         free(responseBuffer);
         throw std::runtime_error(message);
     }
@@ -206,7 +204,7 @@ bool Tftp::SendDataBlock(size_t totalFileSize)
     TotalSentReceived += totalToSend;
     std::stringstream ss;
     ss << "Sending DATA #" << BlockN <<" ... " << TotalSentReceived << " B of " << totalFileSize << " B.";
-    _PrintProgressMessage(ss.str(), std::cout);
+    MessagePrinter::PrintMessage(ss.str());
 
     //Fill in packet header.
     _CopyOpcodeToPacket(packetPtr, OPCODE_DATA);
@@ -261,12 +259,12 @@ void Tftp::ReceiveData(size_t totalFileSize)
         totalReceived += received - 4;
 
         std::stringstream ss;
-        ss << "Receiving DATA ... " << totalReceived << " B";
+        ss << "Receiving DATA #" << BlockN << " ... " << totalReceived << " B";
         if (Args->TransferMode == "octet")
             ss << " of " << totalFileSize << " B.";
         else
             ss << '.';
-        _PrintProgressMessage(ss.str(), std::cout);
+        MessagePrinter::PrintMessage(ss.str());
 
         fwrite(buffer + 4, sizeof(char), _DataWriteSize(Args, buffer + 4, bufferSize), Source);
     }

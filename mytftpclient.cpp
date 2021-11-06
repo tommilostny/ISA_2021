@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <iostream>
 #include "argumentparser.hpp"
+#include "messageprinter.hpp"
 #include "tftp.hpp"
 
 ArgumentParser* ParsePromptArgs()
@@ -48,13 +49,13 @@ int main()
         }
         catch (const std::invalid_argument& exc) //Invalid filename in read mode.
         {
-            std::cerr << exc.what() << std::endl;
+            MessagePrinter::PrintError(exc.what());
             delete argParser;
             continue;
         }
         catch (const std::runtime_error& exc) //Transfer error.
         {
-            std::cerr << exc.what() << std::endl;
+            MessagePrinter::PrintError(exc.what());
         }
         //Free resources before next iteration and prompt.
         delete tftp;
