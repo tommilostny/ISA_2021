@@ -15,7 +15,4 @@ clean:
 
 # Create .tar archive for project submission.
 tar:
-	tar -cf xmilos02.tar *.cpp *.hpp Makefile manual.pdf README
-
-valgrind: debug
-	valgrind ./mytftpclient < test-inputs.txt
+	tar -cf xmilos02.tar *.cpp *.hpp Makefile manual.pdf README.md
