@@ -17,8 +17,9 @@ void _ArgsForGetopt(std::string args, int& argc, char**& argv)
     argc = 1;
     auto progArg = (char*)malloc(13 * sizeof(char));
     if (progArg == NULL)
-        throw std::runtime_error("Unable to allocate memory.");
-
+    {
+        throw std::runtime_error("Memory allocation error.");
+    }
     // Fill program name array memory, set it as first item of a temporaty vector of loaded arguments.
     strcpy(progArg, "mytftpclient");
     std::vector<char*> argsVect = { progArg };
@@ -37,8 +38,9 @@ void _ArgsForGetopt(std::string args, int& argc, char**& argv)
             // Copy substring to a new character array and save it in the temporary vector.
             auto argArray = (char*)malloc((arg.length() + 1) * sizeof(char));
             if (argArray == NULL)
-                throw std::runtime_error("Unable to allocate memory.");
-
+            {
+                throw std::runtime_error("Memory allocation error.");
+            }
             strcpy(argArray, arg.c_str());
             argsVect.push_back(argArray);
             argc++;
@@ -51,10 +53,13 @@ void _ArgsForGetopt(std::string args, int& argc, char**& argv)
     }
     // All options loaded, save them to a new char pointer array argv.
     if ((argv = (char**)malloc(argc * sizeof(char*))) == NULL)
-        throw std::runtime_error("Unable to allocate memory.");
-
+    {
+        throw std::runtime_error("Memory allocation error.");
+    }
     for (int i = 0; i < argc; i++)
+    {
         argv[i] = argsVect[i];
+    }
 }
 
 /// Free all memory used by created argv array.

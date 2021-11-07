@@ -124,7 +124,10 @@ size_t Tftp::Request()
     //Allocate dynamically sized packet (without unnecessary options).
     auto packetSize = 4 + Args->DestinationPath.size() + Args->TransferMode.size() + optionsSize;
     auto packetPtr = (char*)calloc(packetSize, sizeof(char));
-
+    if (packetPtr == NULL)
+    {
+        throw std::runtime_error("Could not allocate memory for request packet.");
+    }
     _CopyOpcodeToPacket(packetPtr, Args->ReadMode ? OPCODE_RRQ : OPCODE_WRQ);
     
     //Pointer for copying values to the addresses in packet.
@@ -161,6 +164,10 @@ size_t Tftp::Request()
     free(packetPtr);
 
     auto responseBuffer = (char*)calloc(42 + optionsSize, sizeof(char));
+    if (responseBuffer == NULL)
+    {
+        throw std::runtime_error("Could not allocate memory for response buffer.");
+    }
     auto received = RECEIVE(responseBuffer, 42 + optionsSize);
     if (received == -1)
     {
@@ -199,7 +206,10 @@ bool Tftp::SendDataBlock(size_t totalFileSize)
     //Create packet with dynamic length (smaller for the last chunk of data).
     auto packetSize = 4 + totalToSend;
     auto packetPtr = (char*)calloc(packetSize, sizeof(char));
-
+    if (packetPtr == NULL)
+    {
+        throw std::runtime_error("Could not allocate memory for data packet.");
+    }
     TotalSentReceived += totalToSend;
     std::stringstream ss;
     ss << "Sending DATA #" << BlockN <<" ... " << TotalSentReceived << " B of " << totalFileSize << " B.";
@@ -237,6 +247,10 @@ void Tftp::ReceiveData(size_t totalFileSize)
     size_t totalReceived = 0;
     size_t bufferSize = 4 + Args->Size;
     auto buffer = (char*)malloc(bufferSize);
+    if (buffer == NULL)
+    {
+        throw std::runtime_error("Could not allocate memory for data buffer.");
+    }
     int received;
     do
     {
@@ -299,7 +313,10 @@ void Tftp::SendError(uint16_t errorCode, std::string message)
     */
     auto packetSize = 5 + message.size();
     auto packetPtr = (char*)calloc(packetSize, sizeof(char));
-
+    if (packetPtr == NULL)
+    {
+        throw std::runtime_error("Could not allocate memory for error packet.");
+    }
     _CopyOpcodeToPacket(packetPtr, OPCODE_ERROR);
     memcpy(packetPtr + 2, &errorCode, sizeof(uint16_t));
     strcpy(packetPtr + 4, message.c_str());
