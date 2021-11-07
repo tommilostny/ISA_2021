@@ -232,13 +232,6 @@ bool Tftp::SendDataBlock(size_t totalFileSize)
     return TotalSentReceived < totalFileSize;
 }
 
-size_t _DataWriteSize(ArgumentParser* args, char* asciiData, size_t bufferSize)
-{
-    if (args->TransferMode == "octet")
-        return bufferSize - 4;
-    return strlen(asciiData);
-}
-
 void Tftp::ReceiveData(size_t totalFileSize)
 {
     size_t totalReceived = 0;
@@ -255,7 +248,8 @@ void Tftp::ReceiveData(size_t totalFileSize)
             BlockN--;
             continue;
         }
-        totalReceived += received - 4;
+        auto dataLength = received - 4;
+        totalReceived += dataLength;
 
         std::stringstream ss;
         ss << "Received DATA #" << BlockN << " ... " << totalReceived << " B";
@@ -265,7 +259,7 @@ void Tftp::ReceiveData(size_t totalFileSize)
             ss << '.';
         MessagePrinter::PrintMessage(ss.str());
 
-        fwrite(buffer + 4, sizeof(char), _DataWriteSize(Args, buffer + 4, bufferSize), Source);
+        fwrite(buffer + 4, sizeof(char), dataLength, Source);
     }
     while (received == (int)bufferSize);
 
