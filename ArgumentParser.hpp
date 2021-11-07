@@ -36,6 +36,8 @@ class ArgumentParser
         int              Port;            // Argument -a after ',' symbol
         std::string      AddressStr;      // Address in string form
 
+        bool             ExitFlag;        // 
+
     private: // Private parsing methods for constructor design and simplification.
         void ParseReadMode();
         void ParseWrite();
@@ -45,4 +47,6 @@ class ArgumentParser
         void ParseMulticast();
         void ParseMode(bool& modeFlag, std::string optionArg);
         void ParseAddress(bool& addressFlag, std::string optionArg);
+
+        void DisplayHelp();
 };

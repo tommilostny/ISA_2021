@@ -41,6 +41,11 @@ int main()
         if (argParser == NULL)
             continue;
 
+        if (argParser->ExitFlag) // On "quit" or "exit" end the cycle.
+        {
+            delete argParser;
+            break;
+        }
         Tftp* tftp;
         try //Arguments are loaded correctly, create a new TFTP object and perform transfer.
         {

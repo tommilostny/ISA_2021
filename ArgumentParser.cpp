@@ -81,6 +81,10 @@ ArgumentParser::ArgumentParser(std::string args)
     Domain = AF_INET;
     Port = 69;
     TransferMode = "octet";
+    ExitFlag = args == "quit" || args == "exit";
+
+    if (ExitFlag)
+        return;
 
     // Load argc and argv for getopt from string.
     int argc; char** argv;
