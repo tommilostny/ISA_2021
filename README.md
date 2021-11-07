@@ -8,7 +8,7 @@ Autor: Tomáš Milostný (xmilos02)
 Program **mytftpclient** je vytvořený v jazyce **C++**.
 Implementace klienta pro protokol TFTP s podporou Option rozšíření.
 
-Omezení oproti původnímu zadání: Projekt neimplementuje multicast.
+Omezení oproti původnímu zadání: Projekt neimplementuje multicast. *(zatím :D TODO)*
 
 ---
 
@@ -31,7 +31,7 @@ Omezení oproti původnímu zadání: Projekt neimplementuje multicast.
 
 ---
 
-### Rozšiřující příkazy
+### Rozšiřující příkazy:
 
 * ``exit`` nebo ``quit``: ukončení programu.
 * ``help``: zobrazení nápovědy.
