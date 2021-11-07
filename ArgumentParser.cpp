@@ -3,6 +3,7 @@
  * @author Tomáš Milostný (xmilos02)
  */
 #include <getopt.h>
+#include <iostream>
 #include <malloc.h>
 #include <regex>
 #include <stdexcept>
@@ -72,6 +73,17 @@ void _FreeArgv(int argc, char** argv)
 
 ArgumentParser::ArgumentParser(std::string args)
 {
+    HelpFlag = args == "help";
+    if (HelpFlag) //help option without additional parsing.
+    {
+        DisplayHelp();
+        return;
+    }
+    // Or just exit the program on quit or exit command.
+    ExitFlag = args == "quit" || args == "exit";
+    if (ExitFlag)
+        return;
+    
     // Initialize class attributes to default values.
     ReadMode = WriteMode = Multicast = false;
     Timeout = 0;
@@ -81,10 +93,6 @@ ArgumentParser::ArgumentParser(std::string args)
     Domain = AF_INET;
     Port = 69;
     TransferMode = "octet";
-    ExitFlag = args == "quit" || args == "exit";
-
-    if (ExitFlag)
-        return;
 
     // Load argc and argv for getopt from string.
     int argc; char** argv;
@@ -281,4 +289,21 @@ void ArgumentParser::ParseAddress(bool& addressFlag, std::string optionArg)
     }
     AddressStr = strBuffer;
     addressFlag = true;
+}
+
+void ArgumentParser::DisplayHelp()
+{
+    std::cout << "Usage:" << std::endl;
+    std::cout << "  -R\t\t\tSet to read mode. (required, cannot be combined with -W)" << std::endl;
+    std::cout << "  -W\t\t\tSet to write mode.  (required, cannot be combined with -R)" << std::endl;
+    std::cout << "  -d <filename>\t\tDestination file name to read from or write to the server. (required)" << std::endl;
+    std::cout << "  -t <timeout>\t\tTimeout in seconds." << std::endl;
+    std::cout << "  -s <size>\t\tBlock size. (default: 512)" << std::endl;
+    std::cout << "  -m\t\t\tMulticast mode." << std::endl;
+    std::cout << "  -c <mode>\t\tTransfer mode (\"octet\"/\"binary\" or \"ascii\"/\"netascii\", default: \"octet\")" << std::endl;
+    std::cout << "  -a <address>,<port>\tIPv4 or IPv6 address and port of the TFTP server. (default: 127.0.0.1,69)" << std::endl;
+
+    std::cout << std::endl << "Other commands:" << std::endl;
+    std::cout << "  help\t\t\tDisplay this help." << std::endl;
+    std::cout << "  exit/quit\t\tExit the program." << std::endl;
 }

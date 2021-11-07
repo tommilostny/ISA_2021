@@ -31,12 +31,13 @@ class ArgumentParser
         size_t           Size;            // Argument -s, max size of blocks in octets.
         bool             Multicast;       // Argument -m, enables multicast communication.
         std::string      TransferMode;    // Argument -c, mode decoded from "binary"/"octet" and "ascii"/"netascii".
-        union ServerAddress ServerAddress;      // Parsed hint structure from argument -a, IPv4 or IPv6 address.
+        union ServerAddress ServerAddress;// Parsed hint structure from argument -a, IPv4 or IPv6 address.
         int              Domain;          // AF_INET or AF_INET6
         int              Port;            // Argument -a after ',' symbol
         std::string      AddressStr;      // Address in string form
 
-        bool             ExitFlag;        // 
+        bool             ExitFlag;        // Exit or quit command flag.
+        bool             HelpFlag;        // Help command flag.
 
     private: // Private parsing methods for constructor design and simplification.
         void ParseReadMode();

@@ -27,6 +27,7 @@ ArgumentParser* ParsePromptArgs()
     catch (const std::invalid_argument& exc)
     {
         std::cerr << exc.what() << std::endl;
+        std::cerr << "Type \"help\" to display help." << std::endl;
         return NULL;
     }
     return argParser;
@@ -38,14 +39,17 @@ int main()
     while (!std::cin.eof())
     {
         auto argParser = ParsePromptArgs();
-        if (argParser == NULL)
+        if (argParser == NULL || argParser->HelpFlag) //Displayed error message or help. Skip and load args again.
+        {
+            delete argParser;
             continue;
-
-        if (argParser->ExitFlag) // On "quit" or "exit" end the cycle.
+        }
+        if (argParser->ExitFlag) // On "quit" or "exit" end the while loop and the program.
         {
             delete argParser;
             break;
         }
+
         Tftp* tftp;
         try //Arguments are loaded correctly, create a new TFTP object and perform transfer.
         {
@@ -55,12 +59,14 @@ int main()
         catch (const std::invalid_argument& exc) //Invalid filename in read mode.
         {
             MessagePrinter::PrintError(exc.what());
+            std::cerr << "Type \"help\" to display help." << std::endl;
             delete argParser;
             continue;
         }
         catch (const std::runtime_error& exc) //Transfer error.
         {
             MessagePrinter::PrintError(exc.what());
+            std::cerr << "Type \"help\" to display help." << std::endl;
         }
         //Free resources before next iteration and prompt.
         delete tftp;

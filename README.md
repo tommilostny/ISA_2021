@@ -10,6 +10,8 @@ Implementace klienta pro protokol TFTP s podporou Option rozšíření.
 
 Omezení oproti původnímu zadání: Projekt neimplementuje multicast.
 
+Rozšiřující příkazy ``exit`` nebo ``quit`` pro ukončení programu a ``help`` pro zobrazení nápovědy.
+
 ---
 
 ### Příklady spuštění:
