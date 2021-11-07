@@ -10,8 +10,6 @@ Implementace klienta pro protokol TFTP s podporou Option rozšíření.
 
 Omezení oproti původnímu zadání: Projekt neimplementuje multicast.
 
-Rozšiřující příkazy ``exit`` nebo ``quit`` pro ukončení programu a ``help`` pro zobrazení nápovědy.
-
 ---
 
 ### Příklady spuštění:
@@ -30,3 +28,10 @@ Rozšiřující příkazy ``exit`` nebo ``quit`` pro ukončení programu a ``hel
 * [ArgumentParser.hpp](ArgumentParser.hpp), [ArgumentParser.cpp](ArgumentParser.cpp) - parser argumentů příkazové řádky ze zadaného řetězce.
 * [Tftp.hpp](Tftp.hpp),[Tftp.cpp](Tftp.cpp) - třída ``Tftp`` zajišťující operace s protokolem TFTP.
 * [MessagePrinter.hpp](MessagePrinter.hpp), [MessagePrinter.cpp](MessagePrinter.cpp) - statická třída ``MessagePrinter`` pro výpis zpráv s časovou značkou na standardní a chybový výstup.
+
+---
+
+### Rozšiřující příkazy
+
+* ``exit`` nebo ``quit``: ukončení programu.
+* ``help``: zobrazení nápovědy.
