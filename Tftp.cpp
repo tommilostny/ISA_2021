@@ -64,7 +64,7 @@ void Tftp::Transfer()
     //Set ClientSocket timeout.
     if (Args->Timeout > 0)
     {
-        struct timeval timeValue = { .tv_sec = Args->Timeout, .tv_usec = 0 };
+        struct timeval timeValue = { Args->Timeout, 0 };
         if (setsockopt(ClientSocket, SOL_SOCKET, SO_RCVTIMEO, &timeValue, sizeof(timeValue)) == -1)
         {
             throw std::runtime_error("Could not set socket timeout.");

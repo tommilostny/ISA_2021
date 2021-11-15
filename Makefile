@@ -2,7 +2,7 @@
 # Author: Tomáš Milostný (xmilos02)
 
 CC = g++
-CXXFLAGS = -std=c++2a -pedantic -Wall -Wextra -Werror
+CXXFLAGS = -std=c++17 -pedantic -Wall -Wextra -Werror
 OBJS = mytftpclient.o ArgumentParser.o Tftp.o StampMessagePrinter.o
 
 # Compile mytftpclient and its dependencies.
