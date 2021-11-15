@@ -204,7 +204,7 @@ void ArgumentParser::ParseSize(bool& sizeFlag, std::string optionArg)
     }
     catch (const std::exception&)
     {
-        throw std::invalid_argument("Invalid value for argument -s: " + (std::string)optionArg);
+        throw std::invalid_argument("Invalid value for argument -s: " + (std::string)optionArg + " (must be a value between 8 and 65464)");
     }
     sizeFlag = true;
 }
@@ -215,6 +215,7 @@ void ArgumentParser::ParseMulticast()
         throw std::invalid_argument("Argument -m is already set.");
 
     Multicast = true;
+    std::cerr << "Warning: multicast mode is not currently supported." << std::endl;
 }
 
 void ArgumentParser::ParseMode(bool& transModeFlag, std::string optionArg)

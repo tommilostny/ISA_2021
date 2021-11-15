@@ -6,41 +6,50 @@
 #include <unistd.h>
 #include <stdexcept>
 #include <string.h>
-#include "MessagePrinter.hpp"
+#include "StampMessagePrinter.hpp"
 #include "Tftp.hpp"
+
+//TFTP protocol packet opcodes.
+#define OPCODE_RRQ      1
+#define OPCODE_WRQ      2
+#define OPCODE_DATA     3
+#define OPCODE_ACK      4
+#define OPCODE_ERROR    5
 
 //Tftp class wide socket shortcut macros.
 #define SEND(buffer, size)      sendto(ClientSocket, buffer, size, 0, (sockaddr*)&Args->ServerAddress, SocketLength)
-#define RECEIVE(buffer, size)   recvfrom(ClientSocket, buffer, size, 0, (sockaddr*)&Args->ServerAddress, &SocketLength);
+#define RECEIVE(buffer, size)   recvfrom(ClientSocket, buffer, size, 0, (sockaddr*)&Args->ServerAddress, &SocketLength)
 
 //Request packet option constants.
 const char* blksizeReqOptStr = "blksize";
 const char* timeoutReqOptStr = "timeout";
 const char* tsizeReqOptStr = "tsize";
-//const char* multicastReqOptStr = "multicast";
 
 Tftp::Tftp(ArgumentParser* args)
 {
     Args = args;
     ClientSocket = -1;
-
-    std::string filemode = args->ReadMode ? "w" : "r";
-    if (args->TransferMode == "octet")
-        filemode += "b";
-
-    if ((Source = fopen(args->DestinationPath.c_str(), filemode.c_str())) == NULL)
-    {
-        throw std::invalid_argument("Unable to open file " + args->DestinationPath + ".");
-    }
+    DestinationFile = NULL;
 }
 
 Tftp::~Tftp()
 {
-    if (Source != NULL)
-        fclose(Source);
+    if (DestinationFile != NULL)
+        fclose(DestinationFile);
 
     if (ClientSocket != -1)
         close(ClientSocket);
+}
+
+void _OpenFile(FILE*& file, ArgumentParser* args, char fopenMode)
+{
+    char fileMode[3] = { fopenMode, '\0', '\0' };
+
+    if (args->TransferMode == "octet")
+        fileMode[1] = 'b';
+
+    if ((file = fopen(args->DestinationPath.c_str(), fileMode)) == NULL)
+        throw std::runtime_error("Cannot open file" + args->DestinationPath + ".");
 }
 
 void Tftp::Transfer()
@@ -55,26 +64,28 @@ void Tftp::Transfer()
     //Set ClientSocket timeout.
     if (Args->Timeout > 0)
     {
-        struct timeval tv = { .tv_sec = Args->Timeout, .tv_usec = 0 };
-        if (setsockopt(ClientSocket, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == -1)
+        struct timeval timeValue = { .tv_sec = Args->Timeout, .tv_usec = 0 };
+        if (setsockopt(ClientSocket, SOL_SOCKET, SO_RCVTIMEO, &timeValue, sizeof(timeValue)) == -1)
         {
             throw std::runtime_error("Could not set socket timeout.");
         }
     }
+    //Open file if it is going to be read on the client side (WRQ).
+    if (Args->WriteMode)
+        _OpenFile(DestinationFile, Args, 'r');
+
     //Get total file size from server response.
     size_t totalSize = Request();
-    BlockN = 0;
+
+    //Open file if it is going to be written to the server side (RRQ).
     if (Args->ReadMode)
-    {
+        _OpenFile(DestinationFile, Args, 'w');
+
+    //Transfer file.
+    if (Args->ReadMode)
         ReceiveData(totalSize);
-        return;
-    }
-    if (Args->WriteMode)
-    {
-        //Send data packets to the server while the whole file is not read.
-        TotalSentReceived = 0;
-        while (SendDataBlock(totalSize));
-    }
+    else
+        SendData(totalSize);
 }
 
 std::string _GetTransferSize(FILE* file, bool isWriteMode)
@@ -100,7 +111,7 @@ size_t Tftp::Request()
     std::stringstream ss;
     ss << "Requesting " << (Args->ReadMode ? "READ from" : "WRITE to");
     ss << " server " << Args->AddressStr << " on port " << Args->Port << ".";
-    MessagePrinter::PrintMessage(ss.str());
+    StampMessagePrinter::Print(ss.str());
     /*
     2 bytes     string     1 byte     string   1 byte
     --------------------------------------------------
@@ -109,7 +120,7 @@ size_t Tftp::Request()
                 Figure 5-1: RRQ/WRQ packet
     */
     //Load options values.
-    auto tsizeValStr = _GetTransferSize(Source, Args->WriteMode);
+    auto tsizeValStr = _GetTransferSize(DestinationFile, Args->WriteMode);
     auto timeoutValStr = std::to_string(Args->Timeout);
     auto blksizeValStr = std::to_string(Args->Size);
     
@@ -117,9 +128,8 @@ size_t Tftp::Request()
     int tsizeOptSize = (Args->TransferMode == "octet") * (strlen(tsizeReqOptStr) + tsizeValStr.size() + 2);
     int timeoutOptSize = (Args->Timeout != 0) * (strlen(timeoutReqOptStr) + timeoutValStr.size() + 2);
     int blksizeOptSize = (Args->Size != 512) * (strlen(blksizeReqOptStr) + blksizeValStr.size() + 2);
-    //int multicastOptSize = (int)Args->Multicast * (multicastReqOptStr.size() + 1);
 
-    int optionsSize = tsizeOptSize + timeoutOptSize + blksizeOptSize/* + multicastOptSize*/;
+    int optionsSize = tsizeOptSize + timeoutOptSize + blksizeOptSize;
     
     //Allocate dynamically sized packet (without unnecessary options).
     auto packetSize = 4 + Args->DestinationPath.size() + Args->TransferMode.size() + optionsSize;
@@ -158,40 +168,109 @@ size_t Tftp::Request()
         strcpy(currentPtr, blksizeReqOptStr);
         currentPtr += 1 + strlen(blksizeReqOptStr);
         strcpy(currentPtr, blksizeValStr.c_str());
-        //TODO before multicast option: currentPtr += 1 + blksizeValStr.size();
     }
     SEND(packetPtr, packetSize);
     free(packetPtr);
 
-    auto responseBuffer = (char*)calloc(42 + optionsSize, sizeof(char));
+    auto bufferSize = 42 + optionsSize;
+    auto responseBuffer = (char*)calloc(bufferSize, sizeof(char));
     if (responseBuffer == NULL)
     {
         throw std::runtime_error("Could not allocate memory for response buffer.");
     }
-    auto received = RECEIVE(responseBuffer, 42 + optionsSize);
+    auto received = RECEIVE(responseBuffer, bufferSize);
     if (received == -1)
     {
         free(responseBuffer);
         throw std::runtime_error("Server did not respond.");
     }
-    if (responseBuffer[1] == 5) //opcode 5 => error packet
+    //Received an error packet, display message from server and end with error.
+    if (ntohs(*(uint16_t*)responseBuffer) == OPCODE_ERROR)
     {
-        std::string message = "Error from the server:  " + std::string(responseBuffer + 4);
+        /*
+        2 bytes     2 bytes      string    1 byte
+        -------------------------------------------
+        | Opcode |  ErrorCode |   ErrMsg   |   0  |
+        -------------------------------------------
+                Figure 5-4: ERROR packet
+        */
+        auto message = "Error from the server:  " + std::string(responseBuffer + 4);
         free(responseBuffer);
         throw std::runtime_error(message);
     }
+    size_t tsizeFromResponse;
+    //Received an OACK packet, read tsize option from it if transfer mode is octet.
     if (Args->TransferMode == "octet")
     {
         //Get tsize option from the response packet (useful for reading from the server).
         std::string responseTsize = responseBuffer + 3 + strlen(tsizeReqOptStr);
-        free(responseBuffer);
-        return std::stoul(responseTsize);
+        tsizeFromResponse = std::stoul(responseTsize);
     }
-    return 0;
+    else tsizeFromResponse = std::stoul(tsizeValStr);
+    free(responseBuffer);
+    return tsizeFromResponse;
 }
 
-bool Tftp::SendDataBlock(size_t totalFileSize)
+void Tftp::SendData(size_t totalFileSize)
 {
+    size_t totalSent = 0;
+    size_t blockN = 0;
+    //Send data packets to the server while the whole file is not read.
+    while (totalSent < totalFileSize)
+    {
+        /*
+        2 bytes     2 bytes      n bytes
+        ------------------------------------
+        | Opcode |   Block #  |   Data     |
+        ------------------------------------
+            Figure 5-2: DATA packet
+        */
+        //Increment block number, mark total send.
+        blockN++;
+        size_t totalToSend = totalSent + Args->Size <= totalFileSize ? Args->Size : totalFileSize - totalSent;
+
+        //Create packet with dynamic length (smaller for the last chunk of data).
+        auto packetSize = 4 + totalToSend;
+        auto packetPtr = (char*)calloc(packetSize, sizeof(char));
+        if (packetPtr == NULL)
+        {
+            throw std::runtime_error("Could not allocate memory for data packet.");
+        }
+        totalSent += totalToSend;
+        std::stringstream ss;
+        ss << "Sending DATA #" << blockN <<" ... " << totalSent << " B of " << totalFileSize << " B.";
+        StampMessagePrinter::Print(ss.str());
+
+        //Fill in packet header.
+        _CopyOpcodeToPacket(packetPtr, OPCODE_DATA);
+        blockN = htons(blockN);
+        memcpy(packetPtr + 2, &blockN, sizeof(uint16_t));
+        blockN = ntohs(blockN);
+
+        //Read data from file and send them.
+        fread(packetPtr + 4, sizeof(char), totalToSend, DestinationFile);
+        int sendResult;
+        do
+        {
+            sendResult = SEND(packetPtr, packetSize);
+        }
+        while (sendResult == -1);
+        free(packetPtr);
+
+        //Check received acknowledgement.
+        char ackBuffer[4];
+        auto received = RECEIVE(ackBuffer, 4);
+        if (received == -1 || ntohs(*(uint16_t*)ackBuffer) != OPCODE_ACK)
+        {
+            throw std::runtime_error("Error while transfering data.");
+        }
+    } 
+}
+
+void Tftp::ReceiveData(size_t totalFileSize)
+{
+    size_t blockN = 0;
+    size_t totalReceived = 0;
     /*
     2 bytes     2 bytes      n bytes
     ------------------------------------
@@ -199,52 +278,6 @@ bool Tftp::SendDataBlock(size_t totalFileSize)
     ------------------------------------
         Figure 5-2: DATA packet
     */
-    //Increment block number, mark total send.
-    BlockN++;
-    size_t totalToSend = TotalSentReceived + Args->Size <= totalFileSize ? Args->Size : totalFileSize - TotalSentReceived;
-
-    //Create packet with dynamic length (smaller for the last chunk of data).
-    auto packetSize = 4 + totalToSend;
-    auto packetPtr = (char*)calloc(packetSize, sizeof(char));
-    if (packetPtr == NULL)
-    {
-        throw std::runtime_error("Could not allocate memory for data packet.");
-    }
-    TotalSentReceived += totalToSend;
-    std::stringstream ss;
-    ss << "Sending DATA #" << BlockN <<" ... " << TotalSentReceived << " B of " << totalFileSize << " B.";
-    MessagePrinter::PrintMessage(ss.str());
-
-    //Fill in packet header.
-    _CopyOpcodeToPacket(packetPtr, OPCODE_DATA);
-    BlockN = htons(BlockN);
-    memcpy(packetPtr + 2, &BlockN, sizeof(uint16_t));
-    BlockN = ntohs(BlockN);
-
-    //Read data from file and send them.
-    fread(packetPtr + 4, sizeof(char), totalToSend, Source);
-    int sendResult;
-    do
-    {
-        sendResult = SEND(packetPtr, packetSize);
-    }
-    while (sendResult == -1);
-    free(packetPtr);
-
-    //Check received acknowledgement.
-    char ackBuffer[4];
-    auto received = RECEIVE(ackBuffer, 4);
-    if (received == -1 || ackBuffer[1] != OPCODE_ACK)
-    {
-        throw std::runtime_error("Error while transfering data.");
-    }
-    //Transmission end condition (sent the whole file?).
-    return TotalSentReceived < totalFileSize;
-}
-
-void Tftp::ReceiveData(size_t totalFileSize)
-{
-    size_t totalReceived = 0;
     size_t bufferSize = 4 + Args->Size;
     auto buffer = (char*)malloc(bufferSize);
     if (buffer == NULL)
@@ -254,30 +287,35 @@ void Tftp::ReceiveData(size_t totalFileSize)
     int received;
     do
     {
-        SendAcknowledgment(BlockN++);
+        SendAcknowledgment(blockN++);
         memset(buffer, 0, bufferSize);
-        received = RECEIVE(buffer, bufferSize);
-        if (received == -1 || ntohs(((uint16_t*)buffer)[1]) != BlockN)
+        
+        if ((received = RECEIVE(buffer, bufferSize)) == -1)
         {
-            BlockN--;
+            free(buffer);
+            throw std::runtime_error("Lost connection to the server.");
+        }
+        if (ntohs(((uint16_t*)buffer)[1]) != blockN)
+        {
+            blockN--;
             continue;
         }
         auto dataLength = received - 4;
         totalReceived += dataLength;
 
         std::stringstream ss;
-        ss << "Received DATA #" << BlockN << " ... " << totalReceived << " B";
-        if (Args->TransferMode == "octet")
+        ss << "Received DATA #" << blockN << " ... " << totalReceived << " B";
+        if (totalFileSize > 0)
             ss << " of " << totalFileSize << " B.";
         else
             ss << '.';
-        MessagePrinter::PrintMessage(ss.str());
+        StampMessagePrinter::Print(ss.str());
 
-        fwrite(buffer + 4, sizeof(char), dataLength, Source);
+        fwrite(buffer + 4, sizeof(char), dataLength, DestinationFile);
     }
     while (received == (int)bufferSize);
 
-    SendAcknowledgment(BlockN);
+    SendAcknowledgment(blockN);
     free(buffer);
 }
 
@@ -300,27 +338,4 @@ void Tftp::SendAcknowledgment(uint16_t blockN)
         sendResult = SEND(packetPtr, 4);
     }
     while (sendResult == -1);
-}
-
-void Tftp::SendError(uint16_t errorCode, std::string message)
-{
-    /*
-    2 bytes     2 bytes      string    1 byte
-    -------------------------------------------
-    | Opcode |  ErrorCode |   ErrMsg   |   0  |
-    -------------------------------------------
-            Figure 5-4: ERROR packet
-    */
-    auto packetSize = 5 + message.size();
-    auto packetPtr = (char*)calloc(packetSize, sizeof(char));
-    if (packetPtr == NULL)
-    {
-        throw std::runtime_error("Could not allocate memory for error packet.");
-    }
-    _CopyOpcodeToPacket(packetPtr, OPCODE_ERROR);
-    memcpy(packetPtr + 2, &errorCode, sizeof(uint16_t));
-    strcpy(packetPtr + 4, message.c_str());
-
-    SEND(packetPtr, packetSize);
-    free(packetPtr);
 }

@@ -3,11 +3,14 @@
 
 CC = g++
 CXXFLAGS = -std=c++2a -pedantic -Wall -Wextra -Werror
-OBJS = mytftpclient.o ArgumentParser.o Tftp.o MessagePrinter.o
+OBJS = mytftpclient.o ArgumentParser.o Tftp.o StampMessagePrinter.o
 
 # Compile mytftpclient and its dependencies.
 mytftpclient: $(OBJS)
 	$(CC) $(CXXFLAGS) $^ -o $@
+
+run: mytftpclient
+	sudo ./$^
 
 # Delete built files.
 clean:

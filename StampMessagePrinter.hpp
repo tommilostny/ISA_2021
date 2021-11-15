@@ -5,14 +5,13 @@
 #pragma once
 #include <string>
 
-class MessagePrinter
+class StampMessagePrinter
 {
 public:
-    static void PrintMessage(std::string message);
+    static void Print(std::string message);
     static void PrintError(std::string message);
 private:
-    MessagePrinter();
+    StampMessagePrinter();
     //Print local time with miliseconds and message.
     static void PrintWithTimeStamp(std::string message, std::ostream& stream);
-    static std::string GetTimeStamp();
 };
